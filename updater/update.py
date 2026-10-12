@@ -794,6 +794,76 @@ def fetch_news(cfg, ua, state_dir):
     return uniq
 
 
+LAUNCHES_MAX = 40
+
+
+def _g(o, *keys):
+    for k in keys:
+        o = o.get(k) if isinstance(o, dict) else None
+    return o
+
+
+def _launch_row(r):
+    """Запись Launch Library 2 → короткая строка для страницы (только то, что показывается)."""
+    net = r.get("net")
+    if not isinstance(net, str):
+        return None
+
+    def s(v, n=120):
+        return v.strip()[:n] if isinstance(v, str) and v.strip() else None
+
+    def num(v):
+        try:
+            v = float(v)
+            return round(v, 4) if -180 <= v <= 180 else None
+        except (TypeError, ValueError):
+            return None
+
+    row = {"n": s(r.get("name"), 160), "t": net, "p": s(_g(r, "net_precision", "abbrev"), 8),
+           "st": s(_g(r, "status", "abbrev"), 12), "stn": s(_g(r, "status", "name"), 60),
+           "lsp": s(_g(r, "launch_service_provider", "name"), 80), "rk": s(_g(r, "rocket", "configuration", "full_name"), 80),
+           "m": s(_g(r, "mission", "name"), 120), "mt": s(_g(r, "mission", "type"), 40), "orb": s(_g(r, "mission", "orbit", "abbrev"), 12),
+           "pad": s(_g(r, "pad", "name"), 100), "loc": s(_g(r, "pad", "location", "name"), 100),
+           "cc": s(_g(r, "pad", "country", "alpha_2_code"), 3), "lat": num(_g(r, "pad", "latitude")), "lon": num(_g(r, "pad", "longitude")),
+           "d": s(_g(r, "mission", "description"), 400)}
+    return {k: v for k, v in row.items() if v is not None}
+
+
+def fetch_launches(cfg, ua, state_dir):
+    """Ближайшие запуски из Launch Library 2 (The Space Devs): без ключа до 15 запросов в час, поэтому не чаще раза
+    в reuse_hours (кэш в state). Изолирована: при сбое — прежний список, на публикацию не влияет."""
+    lc = cfg.get("launches") or {}
+    if not lc.get("url"):
+        return None
+    cache = os.path.join(state_dir, "launches.json")
+
+    def cached():
+        try:
+            with open(cache, encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return None
+
+    try:
+        if time.time() - os.path.getmtime(cache) < float(lc.get("reuse_hours", 6)) * 3600:
+            got = cached()
+            if got is not None:
+                log.info("  запуски: %d (кэш)", len(got))
+                return got
+    except OSError:
+        pass
+    http_cfg = dict(cfg["http"]); http_cfg["retries"] = 1
+    try:
+        d = json.loads(http_get(lc["url"], http_cfg, ua))
+        out = [x for x in (_launch_row(r) for r in d.get("results") or []) if x][:LAUNCHES_MAX]
+        atomic_write(cache, json.dumps(out, ensure_ascii=False), 0o600)
+        log.info("  запуски: %d", len(out))
+        return out
+    except Exception as e:
+        log.warning("  запуски пропущены: %s", e)
+        return cached()
+
+
 def element_for(r, today, policy):
     age = (dt.datetime.now(UTC) - r["epoch"]).total_seconds() / 86400
     e = {"format": "TLE" if r["kind"] == "T" else "OMM", "epoch": iso(r["epoch"]), "source": r["source"],
@@ -926,7 +996,7 @@ def ensure_seo(page, domain, now):
     return re.sub(r"</head>", "\n".join(tags) + "\n</head>", page, count=1, flags=re.I)
 
 
-def build(template, results, now, domain, stamp=True, state_dir=None, news=None, satcat=None):
+def build(template, results, now, domain, stamp=True, state_dir=None, news=None, satcat=None, launches=None):
     """stamp=False — данные не свежие: дату обновления на странице не трогаем."""
     page = template
     pool = merge_pool(results)
@@ -963,6 +1033,9 @@ def build(template, results, now, domain, stamp=True, state_dir=None, news=None,
     if news is not None and "data-news" in blocks:
         page = put_block(page, "data-news", json_text(news))
         log.info("  data-news: новостей %d", len(news))
+    if launches is not None and "data-launches" in blocks:
+        page = put_block(page, "data-launches", json_text(launches))
+        log.info("  data-launches: запусков %d", len(launches))
     if stamp and "data-meta" in blocks:
         meta = json.loads(get_block(page, "data-meta") or "{}")
         meta["generatedAt"] = iso(now)
@@ -1012,7 +1085,11 @@ def externalize(page, out_dir):
         if not os.path.exists(path):
             atomic_write(path, raw)
             atomic_write(path + ".gz", gzip.compress(raw, 9, mtime=0))
-        page = put_block(page, bid, json.dumps({"src": name}))
+        stub = {"src": name}
+        rows = json.loads(body).get("rows")
+        if isinstance(rows, list):
+            stub["n"] = len(rows)   # число аппаратов: список систем показывает его, пока блок не скачан
+        page = put_block(page, bid, json.dumps(stub))
         for n in os.listdir(out_dir):
             fp = os.path.join(out_dir, n)
             if n.startswith(bid + ".") and not n.startswith(name) and time.time() - os.path.getmtime(fp) > 2 * 86400:
@@ -1066,9 +1143,14 @@ def run_once(args, cfg):
         log.warning("Превью новостей пропущены (на публикацию не влияет): %s", e)
     for it in news or []:
         it.pop("isrc", None)
+    try:
+        launches = fetch_launches(cfg, ua, state_dir)
+    except Exception as e:
+        log.warning("Запуски пропущены (на публикацию не влияет): %s", e)
+        launches = None
     groups = {sy["select"]["satcatGroup"] for sy in satcat_systems(template)}
     satcat = collect_satcat(groups, cfg["http"], state_dir, ua, now) if groups else {}
-    page, changed = build(template, results, now, domain, stamp=bool(fresh), state_dir=state_dir, news=news, satcat=satcat)
+    page, changed = build(template, results, now, domain, stamp=bool(fresh), state_dir=state_dir, news=news, satcat=satcat, launches=launches)
     try:
         check_built(template, page)
     except Exception as e:

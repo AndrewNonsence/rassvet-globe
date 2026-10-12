@@ -3,6 +3,48 @@
 Здесь — что меняется на странице и в репозитории. Даты по UTC.
 What changes on the page and in the repository. Dates are UTC.
 
+## v1.12.0 — 2026-10-12
+
+### Русский
+- **Ночная сторона глобуса больше не чёрная:** мягкий «лунный» свет — видны материки, тёмно-синий океан, облака и рельеф;
+  тёплые сумерки за терминатором, золотистые огни с ореолом вокруг крупных городов, голубая кайма атмосферы вокруг всей
+  планеты. В «Слоях» — ползунок «Яркость ночной стороны»: от «как в жизни» (только огни) до «как на обоях».
+- **Высотомер:** высота камеры над Землёй, отметки МКС, «Рассвета», ГЛОНАСС и ГСО (нажатие — перенестись на эту высоту),
+  шкала расстояний, кнопки −/+ и «Назад» к прежнему виду.
+- **В карточке спутника:** «Следить» — камера летит вместе с ним; «Вид со спутника» — камера на его высоте смотрит вперёд
+  по ходу полёта; «★ В избранное» — свои спутники всегда с трассой и подписью.
+- **Первый вход легче и спокойнее:** только «Рассвет» и станции, трассы и зоны — у выбранного; выбор систем запоминается.
+  Starlink скачивается, только когда он нужен.
+- **«Надо мной»:** карта неба с ближайшим пролётом, сколько спутников «Рассвета» над вами сейчас и в ближайшие сутки,
+  переход к пролёту одной кнопкой. Машина времени — ±3 суток.
+- **Полёт за МКС:** камера летит позади станции, впереди Земля и горизонт, сама станция — официальная 3D-модель NASA.
+  То же для Terra, Swift, OCO-2, Hinode и MMS. Названия — понятные: МКС, «Тяньгун», «Хаббл» вместо каталожных.
+- **Короткое знакомство** для новичков и «Что нового» для тех, кто уже заходил; отметка космодрома с отсчётом до старта.
+- **Рост группировок** «Рассвет» / OneWeb / Starlink, **ближайшие запуски** (Launch Library 2, The Space Devs) и
+  **встраивание** глобуса на свой сайт (`?embed=1`, код — во вкладке «Вид»).
+- **Исправлено:** на экранах Retina и iPad при медленной сети дневная сторона глобуса бывала чёрной (видны только облака).
+- **Исправлено:** 2D-карта после переключения из 3D «прыгала» — менялся масштаб при перетаскивании, не работало колесо.
+
+### English
+- **The night side of the globe is no longer black:** soft "moonlight" shows continents, a deep blue ocean, clouds and
+  relief; warm twilight past the terminator, golden city lights with a glow around large cities, a blue atmosphere rim
+  around the whole planet. Layers get a "Night side brightness" slider, from "realistic" (lights only) to "wallpaper".
+- **Altimeter:** camera height above the Earth, marks for the ISS, Rassvet, GLONASS and GEO (tap to move there), a distance
+  scale, −/+ buttons and “Back” to the previous view.
+- **In the satellite card:** “Follow” — the camera flies along; “Satellite view” — the camera at its height looks ahead
+  along the path; “★ Favourite” — your satellites always show their track and label.
+- **A lighter, calmer first visit:** only Rassvet and space stations, tracks and zones for the selected satellite; the
+  system choice is remembered. Starlink is downloaded only when needed.
+- **“Overhead”:** a sky map with the next pass, how many Rassvet satellites are above you now and over the next day,
+  one-tap jump to a pass. The time machine now spans ±3 days.
+- **Fly with the ISS:** the camera flies behind the station with the Earth and horizon ahead; the station is the official
+  NASA 3D model. The same for Terra, Swift, OCO-2, Hinode and MMS. Friendly names: ISS, Tiangong, Hubble instead of catalogue ones.
+- **A short tour** for newcomers and “What’s new” for returning visitors; a launch site mark with a countdown.
+- **Constellation growth** Rassvet / OneWeb / Starlink, **upcoming launches** (Launch Library 2, The Space Devs) and
+  **embedding** the globe on your site (`?embed=1`, code on the View tab).
+- **Fixed:** on Retina screens and iPads with a slow connection the day side of the globe could turn black (only clouds visible).
+- **Fixed:** the 2D map "jumped" after switching from 3D — panning changed the zoom and the mouse wheel did not work.
+
 ## v1.11.0 — 2026-10-07
 
 ### Русский

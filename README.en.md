@@ -36,17 +36,31 @@ no CDN. An orbit snapshot is embedded in the page, so the site works right after
 > sources; every fact links to its source in the satellite card.
 
 <p align="center">
-  <img src="docs/screenshots/desktop-en.png" alt="2D map with the systems panel" width="100%">
+  <img src="docs/screenshots/desktop-en.png" alt="3D globe at night with the Overhead panel: sky map and Rassvet coverage over London" width="100%">
 </p>
 
 <table>
   <tr>
-    <td width="38%"><img src="docs/screenshots/mobile.png" alt="Mobile layout"></td>
-    <td width="62%"><img src="docs/screenshots/parts-ru.png" alt="The ISS in parts with the radiators selected"></td>
+    <td width="50%"><img src="docs/screenshots/chase-ru.png" alt="Flying with the ISS: the camera behind the station, Mexico below"></td>
+    <td width="50%"><img src="docs/screenshots/night-ru.png" alt="The night side of the Earth: city lights, clouds and the atmosphere rim"></td>
   </tr>
   <tr>
-    <td align="center"><sub>Phone: systems by country and type, the ISS part by part</sub></td>
-    <td align="center"><sub>NASA 3D model: the ISS in 53 parts in six groups, each with a description and sources</sub></td>
+    <td align="center"><sub>Flying with the ISS: the camera behind the station, which is the NASA 3D model</sub></td>
+    <td align="center"><sub>The night side: soft “moonlight”, clouds, city lights, the atmosphere rim</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/launches-ru.png" alt="Upcoming launches and the Baikonur pad on the globe"></td>
+    <td><img src="docs/screenshots/mobile.png" alt="Mobile: a calm first screen and the ISS card"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Upcoming launches: countdown, status and the pad on the globe (Russian UI)</sub></td>
+    <td align="center"><sub>Phone: a calm first screen and the ISS card with “Fly with the ISS” (Russian UI)</sub></td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src="docs/screenshots/parts-ru.png" alt="The ISS in parts with the radiators selected"></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><sub>NASA 3D model: the ISS in 53 parts in six groups, each with a description and sources</sub></td>
   </tr>
 </table>
 
@@ -72,6 +86,12 @@ no CDN. An orbit snapshot is embedded in the page, so the site works right after
 - Close-up view: Sentinel-2 imagery on relief; while detailed tiles load, a layer of coarser tiles covers
   the area, and relief is built in background threads.
 - 2D equirectangular map, one-click switch; the current view is kept in a shareable link.
+- The night side is not black: soft "moonlight", twilight, golden city lights with a glow, an atmosphere rim around
+  the whole planet; brightness is a slider in Layers, from "realistic" to "wallpaper".
+- Altimeter: camera height above the Earth, marks for the ISS, Rassvet, GLONASS and GEO (tap to move to that
+  height), a distance scale, −/+ buttons and "Back" to the previous view.
+- A calm first screen: Rassvet and space stations, tracks and zones for the selected satellite; other systems are
+  in the layers panel and the choice is remembered. Starlink (11k satellites) is downloaded only when needed.
 
 **Satellites**
 - Layers: ±½-orbit ground tracks, non-overlapping labels, motion trails, coverage zones with an
@@ -92,7 +112,12 @@ no CDN. An orbit snapshot is embedded in the page, so the site works right after
   COSPAR IDs, altitude, speed, sub-satellite point, sunlit or in shadow, perigee and apogee.
 
 **Time and observing**
-- ±24-hour time scale with speed-up: scroll ahead to see where a satellite will be tonight.
+- ±3-day time machine with speed-up: scroll ahead to see where a satellite will be tonight.
+- In the card: "Follow" — the camera flies along; "Satellite view" — the camera at its height looks ahead along the
+  path; "Fly with the ISS" (and other spacecraft with a NASA model) — the camera flies behind the station, which is
+  the official 3D model; "★ Favourite" — your satellites always show their track and label.
+- A sky map above you and how many Rassvet satellites are above you now and over the next day; the ▶ button next
+  to a pass jumps the time to it.
 - "How it works": orbital elements, the SGP4 model, inclination, orbit types, the ground track, the coverage
   zone and when a satellite is visible to the eye — in plain words, in Russian and English.
 - A 3D model of the selected satellite behind the cube button (the window adapts to the screen and has a
@@ -124,8 +149,13 @@ no CDN. An orbit snapshot is embedded in the page, so the site works right after
 - Space news from public feeds: a NASA photo or a topic cover, topic filter (launches, stations, Moon, Mars,
   Earth, telescopes, satellites), “3 h ago”, a “new” mark since the last visit, the article language and
   “On the map:” buttons for the spacecraft and systems mentioned (ISS, Hubble, Starlink, GLONASS…).
+- Upcoming launches ([Launch Library 2](https://thespacedevs.com/llapi), The Space Devs): countdown, rocket, status,
+  a "Russia & Baikonur" filter; the "Launch site" button marks the pad on the globe.
+- Constellation growth Rassvet / OneWeb / Starlink by launch date.
+- Embed on your site: `?embed=1` shows only the globe; ready `<iframe>` code is on the View tab.
 - Load your own TLE manually with the "Update TLE" button.
-- Russian and English UI, an "i" hint next to every setting, a short tour on first visit.
+- Russian and English UI, an "i" hint next to every setting, a short tour on first visit and "What's new" for
+  returning visitors.
 - Installs on a phone as an app (PWA) and opens offline with the latest data.
 
 ## 🚀 Run in a minute
@@ -152,12 +182,15 @@ On a weak GPU the page switches to a lighter globe mode by itself.
 
 ```mermaid
 flowchart LR
-    CT["🛰️ CelesTrak<br/>orbital elements"] -->|once a day| UP["⚙️ updater/update.py<br/>validate and build"]
+    CT["🛰️ CelesTrak<br/>orbital elements, SATCAT"] -->|once a day| UP["⚙️ updater/update.py<br/>validate and build"]
+    FD["📰 news, clouds,<br/>upcoming launches"] -->|once a day,<br/>launches every 6 h| UP
     UP -->|embeds data| IDX["📄 index.html"]
+    UP -->|large catalogues separately| BIG["📦 data-starlink.*.json<br/>downloaded when needed"]
     IDX --> BR["🌐 browser"]
-    VG["📦 vendor/ and globe/<br/>libraries, fonts, textures"] --> BR
+    BIG -.-> BR
+    VG["📦 vendor/, globe/, models/<br/>libraries, textures, NASA 3D models"] --> BR
     BR -->|"satellite.js, SGP4"| POS["📍 positions<br/>every frame"]
-    POS -->|"deck.gl, WebGL 2"| VIEW["🌍 globe and map"]
+    POS -->|"deck.gl, WebGL 2"| VIEW["🌍 globe and map,<br/>sky map, fly with the ISS"]
 ```
 
 1. **Data.** Once a day `updater/update.py` fetches fresh orbital elements from CelesTrak, drops

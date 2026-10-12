@@ -51,6 +51,13 @@ news:
   - {id: habr-space, name: "Habr «Космос»", url: "https://habr.com/ru/rss/hub/space/", lang: ru, filter: true}
   - {id: nplus1, name: "N+1", url: "https://nplus1.ru/rss", lang: ru, filter: true}
 
+# Ближайшие запуски (панель «Новости» → «Запуски»): Launch Library 2 от The Space Devs, https://thespacedevs.com/llapi —
+# бесплатно, без ключа, до 15 запросов в час без авторизации. Берётся не чаще раза в reuse_hours, при сбое — прежний список.
+# Лицензия данных на странице API не указана [не проверено]; атрибуция — в панели запусков.
+launches:
+  url: "https://ll.thespacedevs.com/2.3.0/launches/upcoming/?limit=40&mode=normal"
+  reuse_hours: 6
+
 # Облака для 3D-глобуса: снимок Live Cloud Maps раз в сутки (картинки CC0, данные EUMETSAT — атрибуция в подвале).
 # Кладутся в <сайт>/clouds/ с датой в имени + latest.json. Сбой не влияет на публикацию: глобус берёт запасные облака NASA.
 clouds:
