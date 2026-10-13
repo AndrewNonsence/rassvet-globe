@@ -1316,7 +1316,7 @@ en:{
   'follow.btn':'Follow', 'follow.stop':'Following', 'follow.tip':'The camera flies along with the satellite. You can zoom; dragging the map stops following.',
   'follow.ride':'Satellite view', 'follow.rideStop':'Exit', 'follow.rideTip':'The camera at the satellite height looks ahead along its path, with the Earth and its relief passing below. Low orbits only.',
   'follow.on':'Following — dragging the map stops it', 'follow.rideOn':'Satellite view. “Exit” or “Back” returns the previous view', 'follow.off':'Following stopped',
-  'fav.btn':'Favourite', 'fav.on':'Favourite', 'fav.tip':'Favourite satellites always show their track and label; the “Favourites only” filter is on the Filters tab. The list is kept in this browser only.',
+  'fav.btn':'Add to favourites', 'fav.on':'In favourites', 'fav.tip':'Favourite satellites always show their track and label; the “Favourites only” filter is on the Filters tab. The list is kept in this browser only.',
   'fav.added':'Added to favourites', 'fav.removed':'Removed from favourites',
   'f.fav':'Favourites', 'f.favChip':'★ Favourites only', 'f.favNone':'Star a satellite in its card', 'tip.fav':'Your own satellites: star them in the card; kept in this browser only.',
   'layer.calm':'Calm view', 'tip.calm':'Tracks and coverage zones only for the selected and favourite satellites, and labels on the overview too. On for the first visit so lines do not cover the Earth; turn it off to see tracks and zones of the whole Rassvet constellation.', 'nav.backShort':'Back', 'nav.northShort':'North', 'nav.rassvetShort':'Rassvet',
@@ -1802,7 +1802,7 @@ function computeZones(idx, G){
 let zonePend=null;
 function zoneLayers(t, idx, G){
   const now=performance.now();
-  const key=[S.view,S.elev,S.selected,S.colorMode,visList.length,trackStamp,S.calm?1:0,FOLLOW.chase?FOLLOW.i:-1].join('|');
+  const key=[S.view,S.elev,S.selected,S.colorMode,visList.length,trackStamp,S.calm?1:0,chaseIdx()].join('|');
   const many=idx.length>2000;
   if(zoneCache.sim===null || zoneCache.key!==key || Math.abs(t-zoneCache.sim) > 30000){
     const z=computeZones(idx, G);
@@ -2004,7 +2004,7 @@ function drawBase(){
 /* ================= Deck ================= */
 const ctrlFor = v => ({ inertia:300, scrollZoom: v==='globe' ? {smooth:false, speed:0.01} : {smooth:true, speed:0.012}, keyboard:true, doubleClickZoom:true,
   ...(v==='globe' ? {dragRotate:true, multiTouchDrag:'rotate'} : {dragRotate:false, touchRotate:false}) });   // глобус: правая кнопка / Shift / два пальца — наклон
-function makeView(){ return S.view==='globe' ? new deck._GlobeView({id:'main', resolution:2, nearZMultiplier:(typeof FOLLOW!=='undefined' && FOLLOW.chase)?CHASE.NZ:0.5, parameters:{cullMode:'none'}}) /* в 9.4 по умолчанию отсекаются задние грани — с ними пропадали подписи */ : new deck.MapView({id:'main2d', repeat:true}); }   // свой id: при том же id deck.gl оставлял от глобуса состояние контроллера — 2D после переключения «прыгала»
+function makeView(){ return S.view==='globe' ? new deck._GlobeView({id:'main', resolution:2, nearZMultiplier:FOLLOW.mode==='chase'?CHASE.NEAR_Z:0.5, parameters:{cullMode:'none'}}) /* в 9.4 по умолчанию отсекаются задние грани — с ними пропадали подписи */ : new deck.MapView({id:'main2d', repeat:true}); }   // свой id: при том же id deck.gl оставлял от глобуса состояние контроллера — 2D после переключения «прыгала»
 function clampVS(vs){
   const o={longitude:vs.longitude, latitude:vs.latitude, zoom:vs.zoom, pitch:0, bearing:0, minZoom:S.view==='globe'?0:0, maxZoom:9};
   if(S.view==='map') o.latitude=Math.max(-80,Math.min(80,o.latitude));
@@ -2055,7 +2055,7 @@ function satLayers(t){
   const B=SATBUF, P=B.P;
   for(let k=0;k<n;k++){ const i=idx[k]; P[k*3]=pos[i*3]; P[k*3+1]=pos[i*3+1]; P[k*3+2]=G?dispAltKm(pos[i*3+2])*1000:0; }
   // цвета и размеры — только при смене состава, раскраски, выбора или вида; иначе те же описатели, и deck.gl не грузит их в GPU заново
-  const chaseI=FOLLOW.chase ? FOLLOW.i : -1, sk=[G?1:0, S.colorMode, S.focusLaunch||'', S.selected, chaseI].join('|');
+  const chaseI=chaseIdx(), sk=[G?1:0, S.colorMode, S.focusLaunch||'', S.selected, chaseI].join('|');
   let same = sk===B.styleKey && B.idx && B.idx.length===n;
   if(same){ const a=B.idx; for(let k=0;k<n;k++) if(a[k]!==idx[k]){ same=false; break; } }
   if(!same){
@@ -2075,7 +2075,9 @@ function satLayers(t){
   // зоны видимости
   if(S.zones){
     const zi=S.calm ? idx.filter(i=>i===S.selected || FAV.has(sats[i].norad)) : idx;
-    const zl=zoneLayers(t, FOLLOW.chase ? zi.filter(i=>i!==FOLLOW.i) : zi, G);   // спокойный вид: зона только у выбранного и избранных for(const l of zl.vector) layers.push(drapeOn()?l.clone({extensions:[TERRAIN_EXT]}):l);
+    // спокойный вид: зона только у выбранного и избранных; в полёте следом у того, за кем летим, зоны нет
+    const zl=zoneLayers(t, zi.filter(i=>i!==chaseIdx()), G);
+    for(const l of zl.vector) layers.push(drapeOn()?l.clone({extensions:[TERRAIN_EXT]}):l);
     zoneBitmapLayer = zl.bitmap;
   } else zoneBitmapLayer = null;
   // трассы
@@ -2083,11 +2085,11 @@ function satLayers(t){
     const key=[S.view,S.selected,sats.length,trackStamp].join('|');
     if(trackCache.t===null || Math.abs(t-trackCache.t)>20000 || trackCache.key!==key){ trackCache={t,key,paths:buildTracks(t),data:null}; }
     // готовые пути — тот же массив, пока трассы не пересчитаны: на новом массиве deck.gl заново режет и триангулирует все линии
-    const dkey=[S.colorMode, FOLLOW.chase?FOLLOW.i:-1, trackCache.paths.map(o=>valid[o.s.idx]).join('')].join('|');
+    const dkey=[S.colorMode, chaseIdx(), trackCache.paths.map(o=>valid[o.s.idx]).join('')].join('|');
     if(!trackCache.data || trackCache.dkey!==dkey){
       const conv = p => G ? p.map(g=>[g[0],g[1],dispAltKm(g[2])*1000]) : p.map(g=>[g[0],g[1]]);
       const data=[]; const push=(p,c,w)=>{ if(G) data.push({p:conv(p),c,w}); else for(const seg of splitAM(conv(p))) data.push({p:seg,c,w}); };
-      for(const o of trackCache.paths){ if(!valid[o.s.idx]) continue; const sel=o.s.idx===S.selected, ch=FOLLOW.chase && o.s.idx===FOLLOW.i;
+      for(const o of trackCache.paths){ if(!valid[o.s.idx]) continue; const sel=o.s.idx===S.selected, ch=o.s.idx===chaseIdx();
         // в полёте следом трасса этого спутника проходит через камеру: отрезки через ближнюю плоскость deck.gl раздувает в полосу
         if(ch) continue; push(o.past,[...colorOf(o.s), sel?150:70], sel?2:1.2); push(o.fut,[...colorOf(o.s), sel?255:175], sel?2.4:1.4); }
       trackCache.data=data; trackCache.dkey=dkey;
@@ -2109,7 +2111,7 @@ function satLayers(t){
     radiusUnits:'pixels', billboard:true, stroked:true, lineWidthUnits:'pixels', getLineWidth:1.3, pickable:true, autoHighlight:true, highlightColor:[255,255,255,90],
     parameters:G?{}:{depthCompare:'always'} }));
   layers.push(...chaseLayers(G), ...padLayers(G));
-  if(S.selected>=0 && valid[S.selected] && !(FOLLOW.chase && FOLLOW.i===S.selected)){
+  if(S.selected>=0 && valid[S.selected] && S.selected!==chaseIdx()){
     const i=S.selected, p=[pos[i*3],pos[i*3+1],G?dispAltKm(pos[i*3+2])*1000:0];
     layers.push(new deck.ScatterplotLayer({ id:'sel', data:[p], getPosition:d=>d, radiusUnits:'pixels', billboard:true, getRadius:13, filled:false, stroked:true, lineWidthUnits:'pixels', getLineWidth:2,
       getLineColor:[...colors.text,255], parameters:G?{}:{depthCompare:'always'} }));
@@ -2182,7 +2184,7 @@ function computeSatLabels(){
   const G=S.view==='globe', grid=makeGrid(), W=vp.width, H=vp.height, now=performance.now();
   // набор подписей (кто подписан и где не мешает) — не чаще 5 раз в секунду; между пересчётами те же объекты
   // только сдвигаются за аппаратами: deck.gl не раскладывает текст заново, обновляет одни координаты
-  const key=[G?1:0, S.selected, S.focusLaunch||'', S.colorMode, LANG, SATBUF.idx?SATBUF.idx.length:0, favStamp, S.calm?1:0, FOLLOW.chase?FOLLOW.i:-1].join('|');
+  const key=[G?1:0, S.selected, S.focusLaunch||'', S.colorMode, LANG, SATBUF.idx?SATBUF.idx.length:0, favStamp, S.calm?1:0, chaseIdx()].join('|');
   if(key===satLabelKey && now-satLabelT<200){
     for(const d of satLabelData){ const i=d.i; d.p=[pos[i*3],pos[i*3+1],G?dispAltKm(pos[i*3+2])*1000:0]; }
     satLabelPosV++; return;
@@ -2199,7 +2201,7 @@ function computeSatLabels(){
   const order=[...labelCand.list.filter(i=>i===S.selected||prevSat.has(i)), ...labelCand.list.filter(i=>i!==S.selected&&!prevSat.has(i))];
   for(const i of order){
     const hint=sats[i].sys.cfg.renderHint;
-    if(FOLLOW.chase && i===FOLLOW.i) continue;
+    if(i===chaseIdx()) continue;
     const pin=i===S.selected || FAV.has(sats[i].norad);
     // спокойный вид: на общем плане подписаны только выбранный и избранные, «Рассвет» — с масштаба 3
     if(!pin && ((hint==='standard' && S.vs.zoom<2.6) || (S.calm && S.vs.zoom<3) || (S.focusLaunch && sats[i].launchId!==S.focusLaunch))) continue;
@@ -2902,35 +2904,52 @@ function toggleFav(s){
   renderCardActs(); toast(t(FAV.has(s.norad)?'fav.added':'fav.removed'));
 }
 
-/* ===== Слежение (камера над спутником) и вид со спутника (камера на его высоте смотрит вперёд по ходу) =====
-   Камера ставится в каждом кадре; перетаскивание снимает слежение, масштаб менять можно. Вид со спутника — только
-   для низких орбит (выше камера не поднимается), при выходе возвращается прежний вид. */
-const FOLLOW={i:-1, ride:false, chase:false, until:0}, RIDE_PITCH=60, RIDE_MAX_KM=2000;
-/* Полёт следом: камера позади и выше спутника, сам аппарат — официальная модель (части GLB, как в окне 3D-модели),
-   увеличенная до ~18 км, иначе станцию в сотню метров с сотни километров не видно. Точка цели камеры подбирается
-   каждый кадр так, чтобы аппарат держался в нижней трети кадра, а впереди были Земля и горизонт. */
-const CHASE={ R_M:14000, UP:70, B:70, Y:0.64, NZ:0.02, z:0, a:0, model:null, url:'' };
-/* Камера GlobeView смотрит на точку поверхности; её высота и отставание от этой точки зависят от зума и широты, поэтому
-   положение подбирается численно по тому же классу вида, что у deck.gl: зум — чтобы камера была на UP км выше спутника,
-   точка цели — чтобы камера была на B км позади него по трассе; B подстраивается, чтобы спутник стоял на Y высоты кадра.
-   Азимут — в точке цели (на сотни километров дальше меридианы уже сходятся). Ближняя плоскость на время полёта
-   уменьшена (NZ): по умолчанию она дальше сотни километров и обрезала бы модель. */
+/* ===== Камера за спутником: режим FOLLOW.mode =====
+   follow — камера над спутником (масштаб менять можно); ride — вид со спутника: камера на его высоте под наклоном смотрит
+   вперёд по ходу; chase — полёт следом: камера позади и выше, сам аппарат — официальная модель NASA. Камера ставится
+   в каждом кадре, перетаскивание снимает режим. ride и chase — только на глобусе и для низких орбит (выше камера не
+   поднимается); при выходе из них возвращается прежний вид. */
+const FOLLOW={i:-1, mode:'', until:0}, RIDE_PITCH=60, RIDE_MAX_KM=2000;
+const FOLLOW_MODES={
+  follow:{ ms:1400, on:'follow.on' },
+  ride:  { ms:1400, on:'follow.rideOn', globe:true },
+  chase: { ms:1800, on:'follow.chaseOn', globe:true, nearZ:true, toastMs:4500 }
+};
+const FOLLOW_TIPS={ follow:'follow.tip', ride:'follow.rideTip', chase:'follow.chaseTip' };
+const rassvetSys = () => systems.find(x=>x.cfg.id==='rassvet');   // группировка «Рассвет» (у станций тоже renderHint 'detailed')
+const chaseIdx = () => FOLLOW.mode==='chase' ? FOLLOW.i : -1;
+const clampZoom = (z, G=S.view==='globe') => Math.max(0, Math.min(G ? GLOBE_MAX_ZOOM : 9, z));
+const nearAngle = (a, ref) => { while(a-ref>180) a-=360; while(a-ref<-180) a+=360; return a; };   // та же долгота (азимут), ближайшая к ref
+/* Полёт следом: модель (части GLB, как в окне 3D-модели) увеличена до MODEL_R_M — станцию в сотню метров с сотни
+   километров иначе не видно. Камера GlobeView смотрит на точку поверхности, а её высота и отставание от этой точки
+   зависят от зума и широты, поэтому положение подбирается численно по тому же классу вида, что у deck.gl: зум — чтобы
+   камера была на UP_KM выше спутника, точка цели — чтобы камера была на back км позади него по трассе; back
+   подстраивается, чтобы спутник стоял на SCREEN_Y высоты кадра. Азимут — в точке цели (на сотни километров дальше
+   меридианы уже сходятся). Ближняя плоскость на время полёта уменьшена (NEAR_Z): по умолчанию она дальше сотни
+   километров и обрезала бы модель. */
+const CHASE={ MODEL_R_M:14000, UP_KM:70, BACK_KM:70, SCREEN_Y:0.64, NEAR_Z:0.02, back:70, z:0, a:0, model:null, url:'' };
 function bearingTo(lon1,lat1,lon2,lat2){ const f1=lat1*D2R, f2=lat2*D2R, dl=(lon2-lon1)*D2R; return (Math.atan2(Math.sin(dl)*Math.cos(f2), Math.cos(f1)*Math.sin(f2)-Math.sin(f1)*Math.cos(f2)*Math.cos(dl))*R2D+360)%360; }
+function satHeading(i){   // азимут наземной трассы: куда спутник сдвинется за 10 с
+  const s=sats[i], t0=S.time.sim, d1=new Date(t0), d2=new Date(t0+10000);
+  const a=propagateGeo(s,d1,satellite.gstime(d1)), b=propagateGeo(s,d2,satellite.gstime(d2));
+  return a && b ? bearingTo(a[0],a[1],b[0],b[1]) : 0;
+}
 function chaseView(i){
   const vp0=currentViewport(); if(!vp0) return null;
   const lon=pos[i*3], lat=pos[i*3+1], h=dispAltKm(pos[i*3+2]), hdg=satHeading(i), W=vp0.width, H=vp0.height, GV=deck._GlobeViewport;
-  const run=B=>{ let z=CHASE.z||6.3, a=CHASE.a||h*1.4, lo=lon, la=lat, b=hdg, vp;
+  const run=back=>{ let z=CHASE.z||6.3, a=CHASE.a||h*1.4, lo=lon, la=lat, b=hdg, vp;
     const mk=()=>{ [lo,la]=destPoint(lat,lon,a/6371,hdg*D2R); b=(bearingTo(lo,la,lon,lat)+180)%360;
-      vp=new GV({width:W, height:H, longitude:lo, latitude:la, zoom:z, pitch:RIDE_PITCH, bearing:b, nearZMultiplier:CHASE.NZ}); };
-    for(let it=0;it<5;it++){ mk(); const c=vp.unprojectPosition(vp.cameraPosition); z+=Math.log2(Math.max(1,c[2]/1000)/(h+CHASE.UP)); a=angDist(lo,la,c[0],c[1])*111.195-B; }
+      vp=new GV({width:W, height:H, longitude:lo, latitude:la, zoom:z, pitch:RIDE_PITCH, bearing:b, nearZMultiplier:CHASE.NEAR_Z}); };
+    for(let it=0;it<5;it++){ mk(); const c=vp.unprojectPosition(vp.cameraPosition); z+=Math.log2(Math.max(1,c[2]/1000)/(h+CHASE.UP_KM)); a=angDist(lo,la,c[0],c[1])*111.195-back; }
     mk(); const q=vp.project([lon,lat,h*1000]); return {lo,la,b,z,a,y:q[1]}; };
-  let B=CHASE.B, r=run(B);
-  const r2=run(B+5), dy=(r2.y-r.y)/5;
-  if(Number.isFinite(dy) && Math.abs(dy)>0.2){ B=Math.max(25, Math.min(250, B-(r.y-CHASE.Y*H)/dy)); r=run(B); }
-  CHASE.B=B; CHASE.z=r.z; CHASE.a=r.a;
-  return {longitude:r.lo, latitude:r.la, zoom:Math.max(0,Math.min(GLOBE_MAX_ZOOM,r.z)), pitch:RIDE_PITCH, bearing:r.b>180?r.b-360:r.b};
+  let back=CHASE.back, r=run(back);
+  const r2=run(back+5), dy=(r2.y-r.y)/5;
+  if(Number.isFinite(dy) && Math.abs(dy)>0.2){ back=Math.max(25, Math.min(250, back-(r.y-CHASE.SCREEN_Y*H)/dy)); r=run(back); }
+  CHASE.back=back; CHASE.z=r.z; CHASE.a=r.a;
+  return {longitude:r.lo, latitude:r.la, zoom:clampZoom(r.z,true), pitch:RIDE_PITCH, bearing:r.b>180?r.b-360:r.b};
 }
-const canChase = i => i>=0 && valid[i] && pos[i*3+2]<RIDE_MAX_KM && !!(modelOf(sats[i])||{}).parts;
+const canRide = i => i>=0 && valid[i] && pos[i*3+2]<RIDE_MAX_KM;
+const canChase = i => canRide(i) && !!(modelOf(sats[i])||{}).parts;
 async function loadChaseModel(s){
   const om=modelOf(s); if(!om || !om.parts) return null; const url=modelUrl(om);
   if(CHASE.url===url && CHASE.model) return CHASE.model;
@@ -2938,10 +2957,10 @@ async function loadChaseModel(s){
   CHASE.url=url; CHASE.model=G; return G;
 }
 function chaseLayers(G3){
-  const i=FOLLOW.i, M=CHASE.model; if(!FOLLOW.chase || i<0 || !M || !valid[i] || !G3) return [];
+  const i=chaseIdx(), M=CHASE.model; if(i<0 || !M || !valid[i] || !G3) return [];
   const lon=pos[i*3], lat=pos[i*3+1], alt=dispAltKm(pos[i*3+2])*1000, h=satHeading(i)*D2R;
   const f=[Math.sin(h),Math.cos(h),0], u=[0,0,1], r=[f[1]*u[2]-f[2]*u[1], f[2]*u[0]-f[0]*u[2], f[0]*u[1]-f[1]*u[0]];   // вперёд, вверх, вправо (восток-север-вверх)
-  const k=CHASE.R_M/M.radius, zUp=M.up==='Z';
+  const k=CHASE.MODEL_R_M/M.radius, zUp=M.up==='Z';
   // оси модели: X — по ходу; вверх — Y (glTF) или Z; третья ось — по правилу правой руки
   const X=f, Y=zUp ? [-r[0],-r[1],-r[2]] : u, Z=zUp ? u : r;
   const c=M.center, tx=-(X[0]*c[0]+Y[0]*c[1]+Z[0]*c[2])*k, ty=-(X[1]*c[0]+Y[1]*c[1]+Z[1]*c[2])*k, tz=-(X[2]*c[0]+Y[2]*c[1]+Z[2]*c[2])*k;
@@ -2951,12 +2970,6 @@ function chaseLayers(G3){
     getColor:(p.color||[200,200,200]).map(v=>Math.round(v*dim)), material:{ambient:0.45, diffuse:0.7, shininess:30, specularColor:[90,90,90]},
     parameters:{cullMode:'none'}, updateTriggers:{getPosition:[lon,lat,alt], getTransformMatrix:mat.join(), getColor:dim} }));
 }
-function satHeading(i){
-  const s=sats[i], t0=S.time.sim, d1=new Date(t0), d2=new Date(t0+10000);
-  const a=propagateGeo(s,d1,satellite.gstime(d1)), b=propagateGeo(s,d2,satellite.gstime(d2)); if(!a || !b) return 0;
-  const φ1=a[1]*D2R, φ2=b[1]*D2R, dλ=(b[0]-a[0])*D2R;
-  return (Math.atan2(Math.sin(dλ)*Math.cos(φ2), Math.cos(φ1)*Math.sin(φ2)-Math.sin(φ1)*Math.cos(φ2)*Math.cos(dλ))*R2D+360)%360;
-}
 function camDistKm(){   // от камеры до точки, на которую она смотрит
   const vp=currentViewport(); if(!vp) return null;
   const c=vp.cameraPosition, q=vp.projectPosition([S.vs.longitude,S.vs.latitude,0]);
@@ -2964,58 +2977,59 @@ function camDistKm(){   // от камеры до точки, на котору�
 }
 function followView(i, first){
   const lon=pos[i*3], lat=pos[i*3+1];
-  if(FOLLOW.chase){ if(first){ CHASE.z=0; CHASE.a=0; CHASE.B=70; } return chaseView(i) || {longitude:lon, latitude:lat}; }
-  if(!FOLLOW.ride) return first ? {longitude:lon, latitude:lat, zoom:Math.max(S.vs.zoom, S.view==='globe'?2.4:3)} : {longitude:lon, latitude:lat};
+  if(FOLLOW.mode==='chase'){ if(first){ CHASE.z=0; CHASE.a=0; CHASE.back=CHASE.BACK_KM; } return chaseView(i) || {longitude:lon, latitude:lat}; }
+  if(FOLLOW.mode!=='ride') return first ? {longitude:lon, latitude:lat, zoom:Math.max(S.vs.zoom, S.view==='globe'?2.4:3)} : {longitude:lon, latitude:lat};
   const h=pos[i*3+2], hdg=satHeading(i), ahead=h*Math.tan(RIDE_PITCH*D2R);
   const [lo2,la2]=destPoint(lat,lon,ahead/6371,hdg*D2R);
   const v={longitude:lo2, latitude:la2, pitch:RIDE_PITCH, bearing:hdg>180?hdg-360:hdg};
-  if(first){ const d=camDistKm(); if(d) v.zoom=Math.max(0, Math.min(GLOBE_MAX_ZOOM, S.vs.zoom+Math.log2(d/(h/Math.cos(RIDE_PITCH*D2R))))); }
+  if(first){ const d=camDistKm(); if(d) v.zoom=clampZoom(S.vs.zoom+Math.log2(d/(h/Math.cos(RIDE_PITCH*D2R))), true); }
   return v;
 }
-function canRide(i){ return i>=0 && valid[i] && pos[i*3+2]<RIDE_MAX_KM; }
-async function startChase(i){
-  if(!canChase(i)) return; toast(t('follow.chaseLoad'), 2500);
-  try{ await loadChaseModel(sats[i]); }catch(e){ console.warn('[rassvet] модель для полёта не загрузилась', e); toast(t('follow.chaseFail'), 3500); return; }
-  if(S.selected!==i) return;
+async function startFollow(i, mode){
+  const M=FOLLOW_MODES[mode]; if(!M || i<0 || !valid[i]) return;
+  if(mode==='chase'){
+    if(!canChase(i)) return; toast(t('follow.chaseLoad'), 2500);
+    try{ await loadChaseModel(sats[i]); }catch(e){ console.warn('[rassvet] модель для полёта не загрузилась', e); toast(t('follow.chaseFail'), 3500); return; }
+    if(S.selected!==i) return;   // пока модель грузилась, выбрали другой спутник
+  }
   if(FOLLOW.i>=0) stopFollow(true);
-  if(S.view!=='globe') setView('globe');
-  pushView(); FOLLOW.i=i; FOLLOW.ride=false; FOLLOW.chase=true; satLabelKey=''; deckgl.setProps({views:makeView()});
-  flyView(followView(i,true),{noPush:true, ms:1800}); FOLLOW.until=performance.now()+1850;
-  renderCardActs(); toast(t('follow.chaseOn'), 4500);
-}
-function startFollow(i, ride){
-  if(i<0 || !valid[i]) return;
-  if(ride && S.view!=='globe') setView('globe');
-  pushView(); FOLLOW.i=i; FOLLOW.ride=!!ride; FOLLOW.chase=false;
-  flyView(followView(i,true),{noPush:true, ms:1400}); FOLLOW.until=performance.now()+1450;
-  renderCardActs(); toast(t(ride?'follow.rideOn':'follow.on'), 3000);
+  if(M.globe && S.view!=='globe') setView('globe');
+  pushView(); FOLLOW.i=i; FOLLOW.mode=mode; satLabelKey='';
+  if(M.nearZ) deckgl.setProps({views:makeView()});
+  flyView(followView(i,true),{noPush:true, ms:M.ms}); FOLLOW.until=performance.now()+M.ms+50;
+  renderCardActs(); toast(t(M.on), M.toastMs||3000);
 }
 function stopFollow(silent){
-  if(FOLLOW.i<0) return; const ride=FOLLOW.ride||FOLLOW.chase, wasChase=FOLLOW.chase; FOLLOW.i=-1; FOLLOW.ride=false; FOLLOW.chase=false; satLabelKey=''; renderCardActs();
-  if(wasChase && S.view==='globe') deckgl.setProps({views:makeView()});
-  if(ride && !silent) goBack();
+  if(FOLLOW.i<0) return; const M=FOLLOW_MODES[FOLLOW.mode]||{};
+  FOLLOW.i=-1; FOLLOW.mode=''; satLabelKey=''; renderCardActs();
+  if(M.nearZ && S.view==='globe') deckgl.setProps({views:makeView()});
+  if(M.globe && !silent) goBack();
 }
 function followTick(){
   const i=FOLLOW.i; if(i<0) return;
   if(!valid[i] || sats[i].decayed){ stopFollow(true); return; }
   if(performance.now()<FOLLOW.until || POINTERS.size) return;
-  const v=followView(i,false); let lon=v.longitude; while(lon-S.vs.longitude>180) lon-=360; while(lon-S.vs.longitude<-180) lon+=360;
-  if(v.bearing!=null){ let b=v.bearing; const b0=S.vs.bearing||0; while(b-b0>180) b-=360; while(b-b0<-180) b+=360; v.bearing=b; }
-  if(FOLLOW.ride){ const ca=camAltKm(), h=pos[i*3+2]; if(ca && h>0) v.zoom=Math.max(0, Math.min(GLOBE_MAX_ZOOM, S.vs.zoom+Math.log2(ca/h)*0.25)); }
-   // под наклоном расстояние до цели не равно высоте — камеру держим на высоте спутника
-  S.vs=clampVS({...S.vs, ...v, longitude:lon}); deckgl.setProps({viewState:S.vs});
+  const v=followView(i,false);
+  if(v.bearing!=null) v.bearing=nearAngle(v.bearing, S.vs.bearing||0);
+  // вид со спутника: под наклоном расстояние до цели не равно высоте — камеру держим на высоте спутника
+  if(FOLLOW.mode==='ride'){ const ca=camAltKm(), h=pos[i*3+2]; if(ca && h>0) v.zoom=clampZoom(S.vs.zoom+Math.log2(ca/h)*0.25, true); }
+  S.vs=clampVS({...S.vs, ...v, longitude:nearAngle(v.longitude, S.vs.longitude)}); deckgl.setProps({viewState:S.vs});
   labelsDirty=true; viewMovedAt=performance.now(); updateAtmo(); updateNav();
 }
+const FOLLOW_ICONS={
+  follow:'<svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5.6" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="8" cy="8" r="1.9" fill="currentColor"/><path d="M8 .8v2.4M8 12.8v2.4M.8 8h2.4M12.8 8h2.4" stroke="currentColor" stroke-width="1.4"/></svg>',
+  ride:'<svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 13.5 8 2.5l6.5 11z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M5 13.5c1-2 5-2 6 0" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>',
+  chase:'<svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.6 14 4.8v6.4L8 14.4 2 11.2V4.8z M2 4.8 8 8l6-3.2M8 8v6.4" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>'
+};
 function renderCardActs(){
   const box=$('#cardActs'); if(!box) return; const i=S.selected; if(i<0){ box.innerHTML=''; return; }
-  const s=sats[i], fol=FOLLOW.i===i && !FOLLOW.ride && !FOLLOW.chase, ride=FOLLOW.i===i && FOLLOW.ride, chase=FOLLOW.i===i && FOLLOW.chase, fav=FAV.has(s.norad);
-  box.innerHTML=`<button type="button" class="cact" id="actFollow" aria-pressed="${fol}" data-tip="${esc(t('follow.tip'))}"><svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5.6" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="8" cy="8" r="1.9" fill="currentColor"/><path d="M8 .8v2.4M8 12.8v2.4M.8 8h2.4M12.8 8h2.4" stroke="currentColor" stroke-width="1.4"/></svg>${esc(t(fol?'follow.stop':'follow.btn'))}</button>`
-    +(canRide(i)||ride?`<button type="button" class="cact" id="actRide" aria-pressed="${ride}" data-tip="${esc(t('follow.rideTip'))}"><svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 13.5 8 2.5l6.5 11z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M5 13.5c1-2 5-2 6 0" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>${esc(t(ride?'follow.rideStop':'follow.ride'))}</button>`:'')
-    +(canChase(i)||chase?`<button type="button" class="cact chase" id="actChase" aria-pressed="${chase}" data-tip="${esc(t('follow.chaseTip'))}"><svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.6 14 4.8v6.4L8 14.4 2 11.2V4.8z M2 4.8 8 8l6-3.2M8 8v6.4" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>${esc(t(chase?'follow.rideStop':'follow.chase', s.name))}</button>`:'')
+  const s=sats[i], cur=FOLLOW.i===i ? FOLLOW.mode : '', fav=FAV.has(s.norad);
+  const label={ follow:t(cur==='follow'?'follow.stop':'follow.btn'), ride:t(cur==='ride'?'follow.rideStop':'follow.ride'), chase:cur==='chase'?t('follow.rideStop'):t('follow.chase', s.name) };
+  const show={ follow:true, ride:canRide(i), chase:canChase(i) };
+  box.innerHTML=Object.keys(FOLLOW_MODES).filter(m=>show[m]||cur===m).map(m=>
+      `<button type="button" class="cact" id="act${m[0].toUpperCase()+m.slice(1)}" data-follow="${m}" aria-pressed="${cur===m}" data-tip="${esc(t(FOLLOW_TIPS[m]))}">${FOLLOW_ICONS[m]}${esc(label[m])}</button>`).join('')
     +`<button type="button" class="cact fav" id="actFav" aria-pressed="${fav}" data-tip="${esc(t('fav.tip'))}"><span aria-hidden="true">${fav?'★':'☆'}</span>${esc(t(fav?'fav.on':'fav.btn'))}</button>`;
-  $('#actFollow').onclick=()=>{ if(FOLLOW.i===i && !FOLLOW.ride && !FOLLOW.chase) stopFollow(); else { if(FOLLOW.ride||FOLLOW.chase) stopFollow(true); startFollow(i,false); } };
-  const r=$('#actRide'); if(r) r.onclick=()=>{ if(FOLLOW.i===i && FOLLOW.ride) stopFollow(); else startFollow(i,true); };
-  const ch=$('#actChase'); if(ch) ch.onclick=()=>{ if(FOLLOW.i===i && FOLLOW.chase) stopFollow(); else startChase(i); };
+  box.querySelectorAll('[data-follow]').forEach(b=>b.onclick=()=>{ const m=b.dataset.follow; if(cur===m) stopFollow(); else startFollow(i,m); });
   $('#actFav').onclick=()=>toggleFav(s);
 }
 
@@ -3024,7 +3038,7 @@ const EASE = x => x<.5 ? 4*x*x*x : 1-Math.pow(-2*x+2,3)/2;
 function flyTo(i){
   pushView();
   const G=S.view==='globe', z=S.vs.zoom;
-  let lon=pos[i*3]; while(lon-S.vs.longitude>180) lon-=360; while(lon-S.vs.longitude<-180) lon+=360;
+  const lon=nearAngle(pos[i*3], S.vs.longitude);
   const zoom = G ? Math.min(Math.max(z,1.6),2.6) : Math.min(Math.max(z,2.0),3.4);
   S.vs={...S.vs, longitude:lon, latitude:pos[i*3+1], zoom, transitionDuration:1100, transitionEasing:EASE, transitionInterpolator:new deck.LinearInterpolator(['longitude','latitude','zoom'])};
   viewMovedAt=performance.now(); deckgl.setProps({viewState:clampVS(S.vs)});
@@ -3415,7 +3429,9 @@ function applyElements(text){
 
 /* ================= Вид ================= */
 function setView(v){
-  if(S.view===v) return; S.view=v; $('#v2d').setAttribute('aria-pressed',String(v==='map')); $('#v3d').setAttribute('aria-pressed',String(v==='globe'));
+  if(S.view===v) return;
+  if(v==='map' && (FOLLOW_MODES[FOLLOW.mode]||{}).globe) stopFollow(true);   // в 2D нет наклона и модели
+  S.view=v; $('#v2d').setAttribute('aria-pressed',String(v==='map')); $('#v3d').setAttribute('aria-pressed',String(v==='globe'));
   const vs=clampVS({longitude:S.vs.longitude, latitude:S.vs.latitude, zoom:S.vs.zoom}); S.vs=vs;
   geoCache=null; labelsDirty=true; trackStamp++; nightCache.key='';
   deckgl.setProps({views:makeView(), viewState:vs, controller:ctrlFor(v)});
@@ -4325,7 +4341,7 @@ function tailLayer(tm, G, idx){
     const data=[], K=6, step=50000;   // 6 отрезков по 50 с: около 5 минут полёта
     for(const i of idx){
       const s=sats[i], hint=s.sys.cfg.renderHint||'standard';
-      if(hint==='bulk' || (S.tracks && (hint==='detailed' || i===S.selected)) || (S.focusLaunch && s.launchId!==S.focusLaunch) || (FOLLOW.chase && i===FOLLOW.i)) continue;
+      if(hint==='bulk' || (S.tracks && (hint==='detailed' || i===S.selected)) || (S.focusLaunch && s.launchId!==S.focusLaunch) || i===chaseIdx()) continue;
       const sr=satrecOf(s); if(!sr || 2*Math.PI/sr.no>200) continue;   // высокие орбиты почти не сдвигаются за пять минут
       const c=colorOf(s); let prev=[pos[i*3],pos[i*3+1],pos[i*3+2]];
       for(let k=1;k<=K;k++){
@@ -4395,20 +4411,22 @@ const NEWS_LINKS=[
   [/\bGPS\b/, {sys:'gps'}], [/iridium|иридиум/i, {sys:'iridium'}],
 ];
 let NEWS_F='';
-let NEWS_V=(()=>{ try{ return localStorage.getItem('rassvet.newsV')||'news'; }catch(e){ return 'news'; } })(), LAUNCH_F='';
+let NEWS_VIEW=(()=>{ try{ return localStorage.getItem('rassvet.newsV')||'news'; }catch(e){ return 'news'; } })(), LAUNCH_FILTER='';
 /* Ближайшие запуски (Launch Library 2, The Space Devs — updater раз в 6 ч): время с точностью из источника, отсчёт,
    ракета и оператор, космодром (нажатие — перелёт к стартовому столу), статус. «Рассвет» и российские старты выделены. */
 const upcoming = () => LAUNCHES.filter(L=>{ const ms=Date.parse(L.t); return Number.isFinite(ms) && ms>Date.now()-3*3600000; });
 const RU_PADS=new Set(['RU','KZ']);   // Байконур — в Казахстане
 const isRassvetLaunch = L => /рассвет|rassvet|bureau\s?1440|бюро\s?1440/i.test([L.n,L.m,L.d].join(' '));
+// точность даты из Launch Library: секунда/минута/час — точное время; день/неделя — только дата; месяц и грубее — месяц
+const launchPrec = L => /^(MON|QUAR|H\d|YEAR|FY|NEC)/i.test(L.p||'') ? 'month' : /^(DAY|WEEK)/i.test(L.p||'') ? 'day' : 'exact';
 function launchWhen(L){
-  const ms=Date.parse(L.t), d=new Date(ms), p=L.p||'';
-  if(/^(MON|QUAR|H\d|YEAR|FY|NEC)/i.test(p)) return t('lch.month', d.toLocaleDateString(LOC(),{month:'long',year:'numeric'}));
-  if(/^(DAY|WEEK)/i.test(p)) return d.toLocaleDateString(LOC(),{weekday:'short',day:'numeric',month:'long'})+' · '+t('lch.dayPrec');
+  const ms=Date.parse(L.t), d=new Date(ms), pr=launchPrec(L);
+  if(pr==='month') return t('lch.month', d.toLocaleDateString(LOC(),{month:'long',year:'numeric'}));
+  if(pr==='day') return d.toLocaleDateString(LOC(),{weekday:'short',day:'numeric',month:'long'})+' · '+t('lch.dayPrec');
   return d.toLocaleString(LOC(),{weekday:'short',day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'});
 }
 function launchIn(L){
-  const dm=(Date.parse(L.t)-Date.now())/60000; if(/^(MON|QUAR|H\d|YEAR|FY|NEC|DAY|WEEK)/i.test(L.p||'')) return '';
+  const dm=(Date.parse(L.t)-Date.now())/60000; if(launchPrec(L)!=='exact') return '';
   if(dm<0) return t('lch.ago'); if(dm<60) return t('lch.inMin', Math.round(dm)); if(dm<48*60) return t('lch.inH', Math.floor(dm/60), Math.round(dm%60));
   return t('lch.inD', Math.round(dm/1440));
 }
@@ -4451,12 +4469,12 @@ function updatePadTag(){
 }
 function launchesHTML(){
   const all=upcoming(), ru=all.filter(L=>RU_PADS.has(L.cc)||isRassvetLaunch(L)).length;
-  if(LAUNCH_F==='ru' && !ru) LAUNCH_F='';
-  let h=`<div class="nfil" role="group"><button type="button" class="chip" data-lf="" aria-pressed="${!LAUNCH_F}">${esc(t('news.all'))} <span class="num">${all.length}</span></button>`
-    +(ru?`<button type="button" class="chip" data-lf="ru" aria-pressed="${LAUNCH_F==='ru'}">${esc(t('lch.ru'))} <span class="num">${ru}</span></button>`:'')+`</div><ul class="newslist lchlist">`;
+  if(LAUNCH_FILTER==='ru' && !ru) LAUNCH_FILTER='';
+  let h=`<div class="nfil" role="group"><button type="button" class="chip" data-lf="" aria-pressed="${!LAUNCH_FILTER}">${esc(t('news.all'))} <span class="num">${all.length}</span></button>`
+    +(ru?`<button type="button" class="chip" data-lf="ru" aria-pressed="${LAUNCH_FILTER==='ru'}">${esc(t('lch.ru'))} <span class="num">${ru}</span></button>`:'')+`</div><ul class="newslist lchlist">`;
   let day=null;
   all.forEach((L,k)=>{
-    if(LAUNCH_F==='ru' && !(RU_PADS.has(L.cc)||isRassvetLaunch(L))) return;
+    if(LAUNCH_FILTER==='ru' && !(RU_PADS.has(L.cc)||isRassvetLaunch(L))) return;
     const dl=newsDay(L.t); if(dl!==day){ day=dl; h+=`<li class="nday" aria-hidden="true">${esc(dl)}</li>`; }
     const st=(L.st||'').toLowerCase(), cls=st==='go'?'go':(st==='tbd'||st==='tbc')?'tbd':(st==='hold'||st==='failure'||st==='partial failure')?'bad':'';
     const hot=isRassvetLaunch(L);
@@ -4497,8 +4515,8 @@ function renderNews(){
   try{ localStorage.setItem('rassvet.newsSeen', new Date().toISOString()); }catch(e){}
   updateNewsDot();
   let h=`<header><h2>${esc(t('news.h'))}</h2><button class="close" id="newsClose" aria-label="${esc(t('news.close'))}">\u00d7</button></header><section>`;
-  if(LAUNCHES.length) h+=`<div class="seg nseg" role="group"><button type="button" data-nv="news" aria-pressed="${NEWS_V!=='launches'}">${esc(t('news.tabNews'))}</button><button type="button" data-nv="launches" aria-pressed="${NEWS_V==='launches'}">${esc(t('news.tabLaunches'))} <span class="num">${upcoming().length}</span></button></div>`;
-  if(NEWS_V==='launches' && LAUNCHES.length){ h+=launchesHTML(); }
+  if(LAUNCHES.length) h+=`<div class="seg nseg" role="group"><button type="button" data-nv="news" aria-pressed="${NEWS_VIEW!=='launches'}">${esc(t('news.tabNews'))}</button><button type="button" data-nv="launches" aria-pressed="${NEWS_VIEW==='launches'}">${esc(t('news.tabLaunches'))} <span class="num">${upcoming().length}</span></button></div>`;
+  if(NEWS_VIEW==='launches' && LAUNCHES.length){ h+=launchesHTML(); }
   else if(!NEWS.length){ h+=`<p class="lead">${esc(t('news.empty'))}</p>`; }
   else{
     const items=NEWS.map(n=>({n, tp:newsTopic(n)})), cnt=new Map();
@@ -4532,8 +4550,8 @@ function renderNews(){
   el.innerHTML=h;
   $('#newsClose').onclick=()=>{ el._seen=undefined; openNews(false); };
   el.querySelectorAll('[data-nf]').forEach(b=>b.onclick=()=>{ NEWS_F=b.dataset.nf; renderNews(); });
-  el.querySelectorAll('[data-nv]').forEach(b=>b.onclick=()=>{ NEWS_V=b.dataset.nv; try{ localStorage.setItem('rassvet.newsV',NEWS_V); }catch(e){} renderNews(); el.querySelector('section').scrollTop=0; });
-  el.querySelectorAll('[data-lf]').forEach(b=>b.onclick=()=>{ LAUNCH_F=b.dataset.lf; renderNews(); });
+  el.querySelectorAll('[data-nv]').forEach(b=>b.onclick=()=>{ NEWS_VIEW=b.dataset.nv; try{ localStorage.setItem('rassvet.newsV',NEWS_VIEW); }catch(e){} renderNews(); el.querySelector('section').scrollTop=0; });
+  el.querySelectorAll('[data-lf]').forEach(b=>b.onclick=()=>{ LAUNCH_FILTER=b.dataset.lf; renderNews(); });
   el.querySelectorAll('[data-pad]').forEach(b=>b.onclick=()=>{ const L=upcoming()[+b.dataset.pad]; if(!L) return; el._seen=undefined; openNews(false); showPad(L); });
   el.querySelectorAll('[data-nl]').forEach(b=>b.onclick=()=>{ const o=el._links[+b.dataset.nl]; el._seen=undefined; openNews(false);
     if(o.kind==='sat') goToSat(o.s); else showSystem(o.sys); });
@@ -4581,7 +4599,8 @@ function renderSkyNow(){
   }
   list.sort((a,b)=>b.el-a.el);
   renderSkyChart(list);
-  const cn=$('#covNow'); if(cn){ const n=list.filter(o=>sats[o.i].sys.cfg.renderHint==='detailed' && sats[o.i].sys.cfg.format==='constellation' && o.el>=S.elev).length; cn.textContent=nf(n); }
+  const cn=$('#covNow'), rs=rassvetSys(); if(cn && rs){ let n=0;   // как у графика: все аппараты «Рассвета», порог — мин. высота
+    for(const x of rs.sats){ if(x.decayed || !satrecOf(x)) continue; const la=lookAt(x,T,gd); if(la && la.el>=S.elev) n++; } cn.textContent=nf(n); }
   if(SKY.cover && Math.abs(T-SKY.cover.t0)>30*60000 && !SKY.covBusy) computeCover();   // время ушло на полчаса — сутки вперёд пересчитываются от нового момента
   $('#skyNowH').textContent = list.length ? t('sky.nowH', list.length) : '';
   ul.innerHTML = list.length ? list.slice(0,12).map(o=>{ const s=sats[o.i]; return `<li><button data-i="${o.i}"><i style="background:${rgbCss(colorOf(s))}"></i><span class="nm">${esc(s.name)}<small>${esc(L(s.sys.cfg.name))}</small></span><span class="v num">${Math.round(o.el)}° ${esc(compass(o.az))}</span>${o.vis?`<span class="eye" title="${esc(t('sky.visTip'))}">✦</span>`:''}</button></li>`; }).join('')
@@ -4593,7 +4612,8 @@ function findPasses(s, t0, gd, maxN){
   const sr=satrecOf(s); if(!sr) return {kind:'none'};
   if(2*Math.PI/sr.no>600){ const la=lookAt(s,t0,gd); return la && la.el>0 ? {kind:'always', el:la.el, az:la.az} : {kind:'never'}; }
   const out=[]; let cur=null;
-  for(let ms=t0; ms<=t0+DAY; ms+=30000){
+  const tEnd=Math.min(t0+DAY, Date.now()+SPAN-120000);   // к пролёту за пределом ±3 суток перемотать нельзя
+  for(let ms=t0; ms<=tEnd; ms+=30000){
     const la=lookAt(s,ms,gd); if(!la) continue;
     if(la.el>=10){ if(!cur) cur={start:ms, az0:la.az, max:la.el, tMax:ms, pMax:la.pos}; if(la.el>cur.max){ cur.max=la.el; cur.tMax=ms; cur.pMax=la.pos; } cur.az1=la.az; cur.end=ms; }
     else if(cur){ if(cur.max>=15) out.push(cur); cur=null; if(out.length>=maxN) break; }   // низкие пролёты у горизонта не показываем
@@ -4606,6 +4626,15 @@ function ensurePass(s){
   if(!SKY.obs || SKY.passCache.has(s.uid)) return;
   SKY.passCache.set(s.uid,{pending:true});
   setTimeout(()=>{ if(!SKY.obs) return; SKY.passCache.set(s.uid, findPasses(s, S.time.sim, obsGd(), 3)); if(S.selected===s.idx) renderCardLive(); }, 30);
+}
+/* кнопки пролёта: перемотать к нему, файл для календаря, напоминание; items[k] = {s, p} */
+function passBtnsHTML(k, s, p){ return `<button class="pa" data-go="${k}" title="${esc(t('pass.go'))}" aria-label="${esc(t('pass.go'))}"><svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.3" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M6.6 5.3v5.4L10.8 8z" fill="currentColor"/></svg></button>`
+      +`<button type="button" class="pa" data-ics="${k}" title="${esc(t('pass.ics'))}" aria-label="${esc(t('pass.ics'))}"><svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="3" width="12" height="11" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M2 6.5h12M5.5 1.6v2.8M10.5 1.6v2.8" stroke="currentColor" stroke-width="1.4"/></svg></button>`
+      +`<button type="button" class="pa" data-rem="${k}" title="${esc(t('pass.remind'))}" aria-label="${esc(t('pass.remind'))}" aria-pressed="${REMIND.has(remKey(s,p))}"><svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 14.2a1.7 1.7 0 0 0 1.7-1.6H6.3A1.7 1.7 0 0 0 8 14.2zM3.2 11.6h9.6l-1.2-1.7V7a3.6 3.6 0 0 0-7.2 0v2.9z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg></button>`; }
+function bindPassBtns(root, items, onRemind){
+  root.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{ const x=items[+b.dataset.go]; goPass(x.s,x.p); });
+  root.querySelectorAll('[data-ics]').forEach(b=>b.onclick=()=>downloadIcs([items[+b.dataset.ics]]));
+  root.querySelectorAll('[data-rem]').forEach(b=>b.onclick=async()=>{ await toggleRemind(items[+b.dataset.rem], b); if(onRemind) onRemind(); });
 }
 /* пролёты выбранного аппарата над точкой наблюдения: до трёх, с календарём и напоминанием; перерисовка — только при изменении */
 function renderPassSec(s){
@@ -4620,12 +4649,8 @@ function renderPassSec(s){
   set(s.uid+'|'+r.list.map(p=>p.start).join(',')+'|'+items.map(x=>REMIND.has(remKey(s,x.p))?1:0).join('')+'|'+LANG,
     `<div class="skychart mini">${skyChartSVG({arcs:[{pts:passArc(s,r.list[0]), c:rgbCss(colorOf(s)), label:fmtClock(r.list[0].start)}]})}</div>`
     +`<ul class="plist">${items.map(({p},k)=>`<li><span>${esc(t('pass.fmt', fmtWhen(p.start), Math.round(p.max), compass(p.az0), compass(p.az1)))}${p.vis?` <span class="tag vis" title="${esc(t('sky.visTip'))}">${esc(t('sky.visible'))}</span>`:''}</span>`
-      +`<button class="pa" data-go="${k}" title="${esc(t('pass.go'))}" aria-label="${esc(t('pass.go'))}"><svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.3" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M6.6 5.3v5.4L10.8 8z" fill="currentColor"/></svg></button>`
-      +`<button type="button" class="pa" data-ics="${k}" title="${esc(t('pass.ics'))}" aria-label="${esc(t('pass.ics'))}"><svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="3" width="12" height="11" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M2 6.5h12M5.5 1.6v2.8M10.5 1.6v2.8" stroke="currentColor" stroke-width="1.4"/></svg></button>`
-      +`<button type="button" class="pa" data-rem="${k}" title="${esc(t('pass.remind'))}" aria-label="${esc(t('pass.remind'))}" aria-pressed="${REMIND.has(remKey(s,p))}"><svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 14.2a1.7 1.7 0 0 0 1.7-1.6H6.3A1.7 1.7 0 0 0 8 14.2zM3.2 11.6h9.6l-1.2-1.7V7a3.6 3.6 0 0 0-7.2 0v2.9z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg></button></li>`).join('')}</ul>`,
-    ()=>{ el.querySelectorAll('[data-ics]').forEach(b=>b.onclick=()=>downloadIcs([items[+b.dataset.ics]]));
-          el.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>goPass(s, items[+b.dataset.go].p));
-          el.querySelectorAll('[data-rem]').forEach(b=>b.onclick=async()=>{ await toggleRemind(items[+b.dataset.rem], b); el.dataset.k=''; }); });
+      +passBtnsHTML(k,s,p)+`</li>`).join('')}</ul>`,
+    ()=>bindPassBtns(el, items, ()=>{ el.dataset.k=''; }));
 }
 function passText(s){
   let r=SKY.passCache.get(s.uid);
@@ -4639,7 +4664,7 @@ function passText(s){
 }
 function computeRassvetPasses(){
   const tok=++SKY.passTok; SKY.passes=null; renderPasses();
-  const sys=systems.find(x=>x.cfg.renderHint==='detailed'); if(!sys || !SKY.obs) return;
+  const sys=rassvetSys(); if(!sys || !SKY.obs) return;
   const list=sys.sats.filter(s=>!s.decayed && satrecOf(s)), res=[], t0=S.time.sim, gd=obsGd(); let k=0;
   const step=()=>{
     if(tok!==SKY.passTok || !SKY.obs) return; const t1=performance.now();
@@ -4654,13 +4679,9 @@ function renderPasses(){
   if(!SKY.passes.length){ ul.innerHTML=`<li class="none">${esc(t('sky.passesNone'))}</li>`; return; }
   const shown=SKY.passes.slice(0,8);
   ul.innerHTML=shown.map(({s,p},k)=>`<li class="pass"><button data-i="${s.idx}"><i style="background:${rgbCss(colorOf(s))}"></i><span class="nm">${esc(s.name)}<small>${esc(fmtWhen(p.start))} · ${esc(compass(p.az0))} → ${esc(compass(p.az1))}</small></span><span class="v num">${Math.round(p.max)}°</span>${p.vis?`<span class="eye" title="${esc(t('sky.visTip'))}">✦</span>`:''}</button>`
-    +`<button class="pa" data-go="${k}" title="${esc(t('pass.go'))}" aria-label="${esc(t('pass.go'))}"><svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.3" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M6.6 5.3v5.4L10.8 8z" fill="currentColor"/></svg></button>`
-    +`<button class="pa" data-ics="${k}" title="${esc(t('pass.ics'))}" aria-label="${esc(t('pass.ics'))}"><svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="3" width="12" height="11" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M2 6.5h12M5.5 1.6v2.8M10.5 1.6v2.8" stroke="currentColor" stroke-width="1.4"/></svg></button>`
-    +`<button class="pa" data-rem="${k}" title="${esc(t('pass.remind'))}" aria-label="${esc(t('pass.remind'))}" aria-pressed="${REMIND.has(remKey(s,p))}"><svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 14.2a1.7 1.7 0 0 0 1.7-1.6H6.3A1.7 1.7 0 0 0 8 14.2zM3.2 11.6h9.6l-1.2-1.7V7a3.6 3.6 0 0 0-7.2 0v2.9z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg></button></li>`).join('')
+    +passBtnsHTML(k,s,p)+`</li>`).join('')
     +`<li class="none"><button class="skyall" id="skyIcsAll">${esc(t('pass.icsAll'))}</button></li>`;
-  ul.querySelectorAll('button[data-ics]').forEach(b=>b.onclick=()=>downloadIcs([shown[+b.dataset.ics]]));
-  ul.querySelectorAll('button[data-go]').forEach(b=>b.onclick=()=>{ const x=shown[+b.dataset.go]; goPass(x.s,x.p); });
-  ul.querySelectorAll('button[data-rem]').forEach(b=>b.onclick=()=>toggleRemind(shown[+b.dataset.rem], b));
+  bindPassBtns(ul, shown);
   $('#skyIcsAll').onclick=()=>downloadIcs(shown);
   ul.querySelectorAll('button[data-i]').forEach(b=>b.onclick=()=>{ openSky(false); goToSat(sats[+b.dataset.i]); });
 }
@@ -4702,7 +4723,7 @@ function renderSkyChart(list){
    и на сутки вперёд с шагом 5 минут; доля времени, когда виден хотя бы один, и самый долгий перерыв ===== */
 function computeCover(){
   const tok=++SKY.covTok; SKY.cover=null; SKY.covBusy=true; renderCover();
-  const sys=systems.find(x=>x.cfg.renderHint==='detailed' && x.cfg.format==='constellation'); if(!sys || !SKY.obs){ SKY.covBusy=false; return; }
+  const sys=rassvetSys(); if(!sys || !SKY.obs){ SKY.covBusy=false; return; }
   const list=sys.sats.filter(s=>!s.decayed && satrecOf(s)), t0=S.time.sim, gd=obsGd(), N=289, STEP=5*60000, cnt=new Uint8Array(N), el=S.elev; let k=0;
   const step=()=>{
     if(tok!==SKY.covTok || !SKY.obs){ SKY.covBusy=false; return; } const t1=performance.now();
@@ -4758,11 +4779,10 @@ function renderGrowth(){
     for(let m=t0; m<=now; m+=30*DAY){ while(k<ds.length && ds[k]<=m) k++; if(k) pts.push(`${X(m).toFixed(1)},${Y(k).toFixed(1)}`); }
     pts.push(`${X(now).toFixed(1)},${Y(ds.length).toFixed(1)}`);
     const c=rgbCss(sys.color); svg+=`<polyline points="${pts.join(' ')}" class="ln" style="stroke:${c}"/>`;
-    leg.push(`<span><i style="background:${c}"></i>${esc(L_(sys))} <b class="num">${nf(ds.length)}</b></span>`);
+    leg.push(`<span><i style="background:${c}"></i>${esc(L(sys.cfg.name))} <b class="num">${nf(ds.length)}</b></span>`);
   }
   box.innerHTML=svg+'</svg>'+`<div class="grleg">${leg.join('')}</div><p class="note">${esc(t('gr.note'))}</p>`;
 }
-const L_ = sys => L(sys.cfg.name);
 
 /* ===== Встраивание: ?embed=1 — только глобус; код для вставки копируется из вкладки «Вид» ===== */
 const EMBED = new URLSearchParams(location.search).get('embed')==='1';
@@ -4916,7 +4936,7 @@ document.addEventListener('click',e=>{
 const ELEV_MARKS=[0,10,25,40];
 function elevRefAlt(){   // высота для подсказки: выбранный спутник или медиана видимых «Рассветов»
   if(S.selected>=0 && valid[S.selected]) return pos[S.selected*3+2];
-  const sys=systems.find(x=>x.cfg.renderHint==='detailed'), hs=[];
+  const sys=rassvetSys(), hs=[];
   if(sys) for(const s of sys.sats) if(valid[s.idx] && !s.decayed) hs.push(pos[s.idx*3+2]);
   hs.sort((a,b)=>a-b); return hs.length ? hs[hs.length>>1] : 516;
 }
@@ -4941,7 +4961,7 @@ function renderMiniLegend(rows){
 const defaultZoom = () => Math.max(0.8, Math.log2(Math.min(window.innerWidth,window.innerHeight)*0.62*Math.PI/512));
 function flyView(v, o={}){
   if(!o.noPush) pushView();
-  let lon=v.longitude ?? S.vs.longitude; while(lon-S.vs.longitude>180) lon-=360; while(lon-S.vs.longitude<-180) lon+=360;
+  const lon=nearAngle(v.longitude ?? S.vs.longitude, S.vs.longitude);
   S.vs={...S.vs, ...v, longitude:lon, transitionDuration:o.ms||900, transitionEasing:EASE, transitionInterpolator:new deck.LinearInterpolator(['longitude','latitude','zoom','pitch','bearing'])};
   deckgl.setProps({viewState:clampVS(S.vs)}); labelsDirty=true; geoCache=null; lastInteract=performance.now();
 }
@@ -4954,9 +4974,9 @@ function updateNav(){
 
 /* ===== «Назад»: прежние виды. В историю попадает вид перед полётом (кнопки, выбор спутника) и перед началом
    перетаскивания или масштабирования; жесты подряд (колесо, несколько движений за 1,5 с) — одна запись ===== */
-const VHIST=[]; let vhAt=0;
+const VHIST=[]; let viewHistAt=0;
 function pushView(group){
-  const now=performance.now(); if(group && now-vhAt<1500){ vhAt=now; return; } vhAt=now;
+  const now=performance.now(); if(group && now-viewHistAt<1500){ viewHistAt=now; return; } viewHistAt=now;
   const v={view:S.view, longitude:S.vs.longitude, latitude:S.vs.latitude, zoom:S.vs.zoom, pitch:S.vs.pitch||0, bearing:S.vs.bearing||0}, top=VHIST[VHIST.length-1];
   if(top && top.view===v.view && Math.abs(top.zoom-v.zoom)<0.25 && Math.abs(top.pitch-v.pitch)<3 && angDist(top.longitude,top.latitude,v.longitude,v.latitude)<40/2**v.zoom) return;
   VHIST.push(v); if(VHIST.length>30) VHIST.shift(); updateBackBtn();
@@ -4964,7 +4984,7 @@ function pushView(group){
 function updateBackBtn(){ const b=$('#navBack'); if(b) b.hidden=!VHIST.length; }
 function goBack(){
   const v=VHIST.pop(); updateBackBtn(); if(!v) return;
-  if(typeof stopFollow==='function') stopFollow(true);
+  stopFollow(true);
   if(v.view!==S.view) setView(v.view);
   flyView({longitude:v.longitude, latitude:v.latitude, zoom:v.zoom, pitch:v.pitch, bearing:v.bearing}, {noPush:true});
 }
@@ -4977,11 +4997,11 @@ function camAltKm(){
   const c=vp.cameraPosition, a=(Math.hypot(c[0],c[1],c[2])-GLOBE_RU)*EARTH_RM/GLOBE_RU/1000;
   return Number.isFinite(a) && a>0 ? a : null;
 }
-function zoomForAlt(km){ const a=camAltKm(); return a ? Math.max(0, Math.min(GLOBE_MAX_ZOOM, S.vs.zoom+Math.log2(a/km))) : S.vs.zoom; }
+function zoomForAlt(km){ const a=camAltKm(); return a ? clampZoom(S.vs.zoom+Math.log2(a/km), true) : S.vs.zoom; }
 const altF=km=>{ const [lo,hi]=ALT_RANGE; return (Math.log(hi)-Math.log(Math.max(lo,Math.min(hi,km))))/(Math.log(hi)-Math.log(lo)); };   // 0 — верх шкалы (далеко)
 const altAtF=f=>{ const [lo,hi]=ALT_RANGE; return Math.exp(Math.log(hi)-Math.max(0,Math.min(1,f))*(Math.log(hi)-Math.log(lo))); };
 function rassvetAltKm(){
-  const sys=systems.find(x=>x.cfg.renderHint==='detailed'); if(!sys) return null;
+  const sys=rassvetSys(); if(!sys) return null;
   const hs=[]; for(const s of sys.sats) if(valid[s.idx] && !s.decayed) hs.push(pos[s.idx*3+2]);
   hs.sort((a,b)=>a-b); return hs.length ? hs[hs.length>>1] : null;
 }
@@ -5021,14 +5041,14 @@ function initAlti(){
     flyView({zoom:zoomForAlt(at(e))},{noPush:true, ms:300}); });
   bar.addEventListener('pointermove',e=>{ if(!drag) return; S.vs=clampVS({...S.vs, zoom:zoomForAlt(at(e))}); deckgl.setProps({viewState:S.vs}); viewMovedAt=lastInteract=performance.now(); labelsDirty=true; geoCache=null; updateAtmo(); updateNav(); });
   bar.addEventListener('pointerup',()=>{ drag=false; });
-  const zb=d=>{ pushView(true); flyView({zoom:Math.max(0, Math.min(S.view==='globe'?GLOBE_MAX_ZOOM:9, S.vs.zoom+d))},{noPush:true, ms:350}); };
+  const zb=d=>{ pushView(true); flyView({zoom:clampZoom(S.vs.zoom+d)},{noPush:true, ms:350}); };
   $('#zoomIn').onclick=()=>zb(1); $('#zoomOut').onclick=()=>zb(-1);
   $('#altiVal').onclick=()=>{ const o=$('#alti').classList.toggle('open'); $('#altiVal').setAttribute('aria-expanded',String(o)); altiKey=''; updateAlti(); };
   $('#navBack').onclick=goBack;
   updateAlti();
 }
 function nextRassvet(){   // следующий спутник «Рассвета»; первый раз — ближайший к центру вида
-  const sys=systems.find(x=>x.cfg.renderHint==='detailed'); if(!sys) return;
+  const sys=rassvetSys(); if(!sys) return;
   if(!sys.enabled){ sys.enabled=true; filtersChanged(); }
   const list=sys.sats.filter(s=>!s.decayed && valid[s.idx]); if(!list.length) return;
   let k=list.findIndex(s=>s.idx===S.selected);
@@ -5080,7 +5100,7 @@ function init(){
   }
   window.__rassvetStarted=true;
   applyStatic();
-  loadSystems(); restoreSystems();
+  loadSystems(); restoreSystems(); rebuildVisible();   // выбор систем из прошлого визита — до первого кадра
   try{ const o=JSON.parse(localStorage.getItem('rassvet.obs')||'null'); if(o && Number.isFinite(o.lat) && Number.isFinite(o.lon)) SKY.obs=o; }catch(e){}
   charset=CHARSET();
   FONT_FAMILY=getComputedStyle(document.body).fontFamily;
@@ -5118,7 +5138,7 @@ function init(){
   $('#tleFile').onchange=e=>{ const f=e.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=()=>{ $('#tleText').value=r.result; applyElements(r.result); }; r.onerror=()=>{ $('#dlgResult').innerHTML='<span class="bad">Файл не прочитан.</span>'; }; r.readAsText(f); };
   document.querySelectorAll('[data-color]').forEach(b=>b.onclick=()=>{ S.colorMode=b.dataset.color; document.querySelectorAll('[data-color]').forEach(x=>x.setAttribute('aria-pressed',String(x===b))); renderLegend(); if(S.selected>=0) renderCard(); if(!$('#sheet').hidden) renderTable(); });
   $('#tTracks').onchange=e=>{ S.tracks=e.target.checked; };
-  // спокойный вид: по умолчанию на телефоне — сотни трасс и зон закрывали Землю; выбор запоминается
+  // спокойный вид: включён при первом входе на всех устройствах (сотни трасс и зон закрывали Землю); выбор запоминается
   { let c=true; try{ const v=localStorage.getItem('rassvet.calm'); if(v==='1'||v==='0') c=v==='1'; }catch(e){}
     S.calm=c; $('#tCalm').checked=c; }
   $('#tCalm').onchange=e=>{ S.calm=e.target.checked; trackStamp++; trackCache.t=null; labelsDirty=true; try{ localStorage.setItem('rassvet.calm', S.calm?'1':'0'); }catch(e){} };

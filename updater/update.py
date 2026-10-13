@@ -797,7 +797,7 @@ def fetch_news(cfg, ua, state_dir):
 LAUNCHES_MAX = 40
 
 
-def _g(o, *keys):
+def _dig(o, *keys):   # o[k1][k2]…, None, если чего-то нет
     for k in keys:
         o = o.get(k) if isinstance(o, dict) else None
     return o
@@ -812,20 +812,20 @@ def _launch_row(r):
     def s(v, n=120):
         return v.strip()[:n] if isinstance(v, str) and v.strip() else None
 
-    def num(v):
+    def num(v, lim):
         try:
             v = float(v)
-            return round(v, 4) if -180 <= v <= 180 else None
+            return round(v, 4) if -lim <= v <= lim else None
         except (TypeError, ValueError):
             return None
 
-    row = {"n": s(r.get("name"), 160), "t": net, "p": s(_g(r, "net_precision", "abbrev"), 8),
-           "st": s(_g(r, "status", "abbrev"), 12), "stn": s(_g(r, "status", "name"), 60),
-           "lsp": s(_g(r, "launch_service_provider", "name"), 80), "rk": s(_g(r, "rocket", "configuration", "full_name"), 80),
-           "m": s(_g(r, "mission", "name"), 120), "mt": s(_g(r, "mission", "type"), 40), "orb": s(_g(r, "mission", "orbit", "abbrev"), 12),
-           "pad": s(_g(r, "pad", "name"), 100), "loc": s(_g(r, "pad", "location", "name"), 100),
-           "cc": s(_g(r, "pad", "country", "alpha_2_code"), 3), "lat": num(_g(r, "pad", "latitude")), "lon": num(_g(r, "pad", "longitude")),
-           "d": s(_g(r, "mission", "description"), 400)}
+    row = {"n": s(r.get("name"), 160), "t": net, "p": s(_dig(r, "net_precision", "abbrev"), 8),
+           "st": s(_dig(r, "status", "abbrev"), 12), "stn": s(_dig(r, "status", "name"), 60),
+           "lsp": s(_dig(r, "launch_service_provider", "name"), 80), "rk": s(_dig(r, "rocket", "configuration", "full_name"), 80),
+           "m": s(_dig(r, "mission", "name"), 120), "mt": s(_dig(r, "mission", "type"), 40), "orb": s(_dig(r, "mission", "orbit", "abbrev"), 12),
+           "pad": s(_dig(r, "pad", "name"), 100), "loc": s(_dig(r, "pad", "location", "name"), 100),
+           "cc": s(_dig(r, "pad", "country", "alpha_2_code"), 3), "lat": num(_dig(r, "pad", "latitude"), 90), "lon": num(_dig(r, "pad", "longitude"), 180),
+           "d": s(_dig(r, "mission", "description"), 400)}
     return {k: v for k, v in row.items() if v is not None}
 
 

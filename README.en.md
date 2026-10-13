@@ -149,7 +149,8 @@ no CDN. An orbit snapshot is embedded in the page, so the site works right after
 - Space news from public feeds: a NASA photo or a topic cover, topic filter (launches, stations, Moon, Mars,
   Earth, telescopes, satellites), “3 h ago”, a “new” mark since the last visit, the article language and
   “On the map:” buttons for the spacecraft and systems mentioned (ISS, Hubble, Starlink, GLONASS…).
-- Upcoming launches ([Launch Library 2](https://thespacedevs.com/llapi), The Space Devs): countdown, rocket, status,
+- Upcoming launches ([Launch Library 2](https://thespacedevs.com/llapi), The Space Devs; the data licence is not stated on
+  the API page — [not verified]): countdown, rocket, status,
   a "Russia & Baikonur" filter; the "Launch site" button marks the pad on the globe.
 - Constellation growth Rassvet / OneWeb / Starlink by launch date.
 - Embed on your site: `?embed=1` shows only the globe; ready `<iframe>` code is on the View tab.

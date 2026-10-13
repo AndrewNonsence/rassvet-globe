@@ -127,6 +127,12 @@ Sources the page can use but which are not shipped in this repository:
   AWS Terrain Tiles, NASA GIBS) относятся только к этому режиму.
   The close-up terrain view requests `tiles/dem/…`, `tiles/img/…`, `tiles/night/…` on the same site.
   Those tiles are not in the repository; without them the globe uses the textures from `globe/`.
+- Ближайшие запуски — [Launch Library 2](https://thespacedevs.com/llapi) (The Space Devs): бесплатно, без ключа,
+  до 15 запросов в час. Скрипт обновления берёт список не чаще раза в 6 часов (секция `launches` в `updater/sources.yml`)
+  и вшивает в `index.html` (блок `data-launches`); в панели запусков — ссылка на источник. Лицензия данных на странице
+  API не указана — [не проверено].
+  Upcoming launches come from Launch Library 2 by The Space Devs (free, no key, up to 15 requests per hour); the update
+  script fetches them at most every 6 hours. The data licence is not stated on the API page — [not verified].
 - Ежедневная карта облаков [Live Cloud Maps](https://github.com/matteason/live-cloud-maps)
   (CC0, contains modified EUMETSAT data) скачивается скриптом обновления в `clouds/`, только если он
   запущен с секцией `clouds` в `updater/sources.yml`.

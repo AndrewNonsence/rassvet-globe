@@ -3,6 +3,20 @@
 Здесь — что меняется на странице и в репозитории. Даты по UTC.
 What changes on the page and in the repository. Dates are UTC.
 
+## v1.12.1 — 2026-10-13
+
+### Русский
+- **Исправлено:** вернулись контуры зон покрытия; выбор систем из прошлого визита применяется сразу; переход в 2D снимает
+  «Вид со спутника» и «Полёт следом»; кнопка ▶ у пролёта не уводит время за предел ±3 суток; число «Рассвет над вами
+  сейчас» совпадает с графиком; английская кнопка избранного — «Add to favourites» / «In favourites».
+- Уборка кода без изменения поведения: один режим камеры за спутником, общие кнопки пролётов, понятные имена.
+
+### English
+- **Fixed:** coverage zone outlines are back; the system choice from the last visit applies at once; switching to 2D stops
+  “Satellite view” and “Fly with”; the ▶ pass button never moves time beyond ±3 days; “Rassvet above you now” matches the
+  chart; the favourite button reads “Add to favourites” / “In favourites”.
+- Code clean-up with no behaviour change: one camera-follow mode, shared pass buttons, clearer names.
+
 ## v1.12.0 — 2026-10-12
 
 ### Русский
