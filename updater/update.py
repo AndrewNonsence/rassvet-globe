@@ -83,6 +83,11 @@ def setup_logging(data_dir):
 
 # ---------- загрузка ----------
 
+def iri_to_uri(url):
+    """Не-ASCII в адресе (el-niño в превью NASA) — в %XX; уже закодированное и служебные символы не трогаем."""
+    return urllib.parse.quote(url, safe=":/?#[]@!$&'()*+,;=%~")
+
+
 def http_get(url, http_cfg, ua, data=None, opener=None, raw=False):
     """GET/POST с таймаутом и повторами. 4xx (кроме 408/429) не повторяем — это не временная ошибка.
     raw=True — вернуть байты (картинки), иначе текст."""
@@ -94,7 +99,7 @@ def http_get(url, http_cfg, ua, data=None, opener=None, raw=False):
             pause = backoff * 3 ** (attempt - 1)
             log.info("  повтор %d/%d через %.0f с", attempt, retries, pause)
             time.sleep(pause)
-        req = urllib.request.Request(url, data=data, headers={"User-Agent": ua, "Accept-Encoding": "gzip"})
+        req = urllib.request.Request(iri_to_uri(url), data=data, headers={"User-Agent": ua, "Accept-Encoding": "gzip"})
         try:
             with opener.open(req, timeout=float(http_cfg.get("timeout_seconds", 60))) as r:
                 body = r.read(MAX_DOWNLOAD + 1)
