@@ -36,12 +36,12 @@ no CDN. An orbit snapshot is embedded in the page, so the site works right after
 > sources; every fact links to its source in the satellite card.
 
 <p align="center">
-  <img src="docs/screenshots/desktop-en.png" alt="3D globe at night with the Overhead panel: sky map and Rassvet coverage over London" width="100%">
+  <img src="docs/screenshots/desktop-en.png" alt="3D globe with the Overhead panel over London: sky map and Rassvet coverage" width="100%">
 </p>
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/screenshots/chase-ru.png" alt="Flying with the ISS: the camera behind the station, Mexico below"></td>
+    <td width="50%"><img src="docs/screenshots/chase-ru.png" alt="Flying with the ISS: the camera behind the station, the Caspian Sea below"></td>
     <td width="50%"><img src="docs/screenshots/night-ru.png" alt="The night side of the Earth: city lights, clouds and the atmosphere rim"></td>
   </tr>
   <tr>
@@ -108,8 +108,9 @@ no CDN. An orbit snapshot is embedded in the page, so the site works right after
   raising orbit, decaying, failed — verified data for Rassvet, the SATCAT code for the rest), having a NASA
   3D model (one button turns on the systems that have such satellites), owner per the
   SATCAT catalogue and launch year; each option shows how many satellites remain.
-- Satellite card: status (marked "unconfirmed" when sources disagree), generation, launch, NORAD and
-  COSPAR IDs, altitude, speed, sub-satellite point, sunlit or in shadow, perigee and apogee.
+- Satellite card: one sentence on where it is, altitude, speed, sunlit or not and when it will be over you; status
+  (marked "unconfirmed" when sources disagree), generation, launch, NORAD and COSPAR IDs, sub-satellite point,
+  perigee and apogee; a month of orbit altitude and a system summary — which satellites raise, which decay.
 
 **Time and observing**
 - ±3-day time machine with speed-up: scroll ahead to see where a satellite will be tonight.
@@ -139,13 +140,18 @@ no CDN. An orbit snapshot is embedded in the page, so the site works right after
 - The next three passes of any selected satellite right in its card, with a calendar file and a
   reminder 5 minutes before.
 - "Overhead": what is above your horizon right now and the next Rassvet passes, flagged when visible
-  to the naked eye. Geolocation stays in the browser and is never sent anywhere.
+  to the naked eye. Your point comes from geolocation, the map or a city name and stays in the browser.
+- Rassvet compared with Starlink and OneWeb over your point for the next day: how many now, the share of time
+  covered, the longest gap.
+- A red screen for night observing that keeps your night vision.
+- A pass picture for social media: the sky map with the arc, time and place — in one tap.
 
 **Convenience**
 - Sortable table of all satellites.
 - Search by name, NORAD or COSPAR, by common names (ISS, Hubble, Tiangong, Chandra…), by Russian spelling of
   catalogue names (Meteor, Kosmos, Ekspress) and by system — a picked system is turned on and shown in the panel.
   Well-known spacecraft that are not in Earth orbit get a note with a source (the James Webb telescope at L2).
+  Cities (Natural Earth, 7,342) set the point for "Overhead".
 - Space news from public feeds: a NASA photo or a topic cover, topic filter (launches, stations, Moon, Mars,
   Earth, telescopes, satellites), “3 h ago”, a “new” mark since the last visit, the article language and
   “On the map:” buttons for the spacecraft and systems mentioned (ISS, Hubble, Starlink, GLONASS…).
@@ -154,10 +160,13 @@ no CDN. An orbit snapshot is embedded in the page, so the site works right after
   a "Russia & Baikonur" filter; the "Launch site" button marks the pad on the globe.
 - Constellation growth Rassvet / OneWeb / Starlink by launch date.
 - Embed on your site: `?embed=1` shows only the globe; ready `<iframe>` code is on the View tab.
-- Load your own TLE manually with the "Update TLE" button.
+- Pass notifications 10 minutes ahead, even with the site closed (Web Push) — where the site runs with a notification
+  service. This repository has no such service; the button does not appear in your copy.
 - Russian and English UI, an "i" hint next to every setting, a short tour on first visit and "What's new" for
   returning visitors.
-- Installs on a phone as an app (PWA) and opens offline with the latest data.
+- Installs on a phone as an app (PWA) and opens offline with the latest data; on iPhone, a hint on adding it to the
+  Home Screen.
+- A dawn strip on the time bar shows night, twilight and day under the camera.
 
 ## 🚀 Run in a minute
 
@@ -836,7 +845,10 @@ and textures. Positions are still computed from the last saved data.
 <summary><b>What does the site send about visitors?</b></summary>
 
 Nothing. No analytics, no ads, no third-party fonts or libraries. Geolocation for "Overhead" is
-requested only when you press the button, stays in the browser and can be cleared with "change".
+requested only when you press the button, stays in the browser and can be cleared with "change". The exception is
+pass notifications on a site with a notification service: when you turn them on, the site receives your browser's
+push service address, your point rounded to 0.1° (about 10 km) and the list of satellites; turning them off deletes
+the subscription.
 </details>
 
 <details>

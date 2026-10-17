@@ -3,6 +3,35 @@
 Здесь — что меняется на странице и в репозитории. Даты по UTC.
 What changes on the page and in the repository. Dates are UTC.
 
+## v1.13.0 — 2026-10-17
+
+### Русский
+- **Новый интерфейс:** спокойная палитра, состояние спутника одной фразой, крупные кнопки действий с подписями,
+  местное время, меню «Ещё», короткий подвал. **Полоса рассвета** на шкале времени показывает, когда в точке под
+  камерой ночь, сумерки и день.
+- **Уведомления о пролётах** за 10 минут — даже когда сайт закрыт (где сайт запущен с сервисом уведомлений; в этом
+  репозитории его нет, и в своей копии кнопка не появляется). На iPhone — после «На экран „Домой“».
+- **Поиск по городу:** наберите «Казань» — увидите, когда над ней пролетят спутники.
+- **В карточке:** ближайший пролёт над вами одной фразой и график высоты орбиты за месяц.
+- **«Надо мной»:** красный экран для ночных наблюдений, сравнение «Рассвета» со Starlink и OneWeb, картинка пролёта
+  для соцсетей. Подсказка, как установить трекер на телефон.
+- **Убрано:** загрузка своих TLE — данные и так обновляются раз в сутки.
+- **Исправлено:** 2D-карта на iPhone прыгала к экватору и почти не двигалась по вертикали; после смахивания в «Полёте
+  за МКС» камера оставалась без станции; график «Рост группировок» не рисовался.
+
+### English
+- **New interface:** a calmer palette, the satellite state in one sentence, large labelled action buttons, local time,
+  a “More” menu, a short footer. A **dawn strip** on the time bar shows night, twilight and day under the camera.
+- **Pass notifications** 10 minutes ahead — even with the site closed (where the site runs with a notification service;
+  this repository has none, so the button does not appear in your copy). On iPhone, after “Add to Home Screen”.
+- **City search:** type “Kazan” to see when satellites pass over it.
+- **In the card:** the next pass over you in one sentence and a month of orbit altitude.
+- **Overhead:** a red screen for night observing, Rassvet compared with Starlink and OneWeb, a pass picture for social
+  media. A hint on installing the tracker on a phone.
+- **Removed:** loading your own TLE — the data updates daily anyway.
+- **Fixed:** the 2D map on iPhone jumped to the equator and barely moved vertically; after a swipe while flying with
+  the ISS the camera stayed without the station; the constellation growth chart did not draw.
+
 ## v1.12.1 — 2026-10-13
 
 ### Русский
