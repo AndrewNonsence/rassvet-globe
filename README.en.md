@@ -160,8 +160,6 @@ no CDN. An orbit snapshot is embedded in the page, so the site works right after
   a "Russia & Baikonur" filter; the "Launch site" button marks the pad on the globe.
 - Constellation growth Rassvet / OneWeb / Starlink by launch date.
 - Embed on your site: `?embed=1` shows only the globe; ready `<iframe>` code is on the View tab.
-- Pass notifications 10 minutes ahead, even with the site closed (Web Push) — where the site runs with a notification
-  service. This repository has no such service; the button does not appear in your copy.
 - Russian and English UI, an "i" hint next to every setting, a short tour on first visit and "What's new" for
   returning visitors.
 - Installs on a phone as an app (PWA) and opens offline with the latest data; on iPhone, a hint on adding it to the
@@ -845,10 +843,7 @@ and textures. Positions are still computed from the last saved data.
 <summary><b>What does the site send about visitors?</b></summary>
 
 Nothing. No analytics, no ads, no third-party fonts or libraries. Geolocation for "Overhead" is
-requested only when you press the button, stays in the browser and can be cleared with "change". The exception is
-pass notifications on a site with a notification service: when you turn them on, the site receives your browser's
-push service address, your point rounded to 0.1° (about 10 km) and the list of satellites; turning them off deletes
-the subscription.
+requested only when you press the button, stays in the browser and can be cleared with "change".
 </details>
 
 <details>

@@ -491,9 +491,6 @@ dialog .acts .grow{flex:1}
 .tag.schematic{color:var(--warn)}
 .tag.official{color:var(--ok)}
 .plist{list-style:none;margin:0;padding:0}
-.pushrow{display:flex;flex-direction:column;align-items:flex-start;gap:4px;margin-top:10px}
-.pushrow .tbtn{min-height:40px}
-.pushrow .tbtn[aria-pressed="true"]{border-color:var(--sky);color:var(--sky)}
 .plist li{display:flex;align-items:center;gap:2px;padding:2px 0}
 .plist li>span{flex:1}
 
@@ -1182,13 +1179,6 @@ ru:{
   'follow.chaseLoad':'Загружаю 3D-модель…', 'follow.chaseFail':'Модель не загрузилась — попробуйте «Вид со спутника»',
   'follow.chaseOn':'Летим следом. Модель показана крупнее настоящей. «Выйти» или «Назад» вернут прежний вид',
   'follow.exited':'Полёт остановлен — возвращаю обычный вид',
-  'push.btn':'Уведомлять о пролётах', 'push.btnOn':'Уведомления о пролётах включены',
-  'push.hint':'За 10 минут до каждого пролёта над вашей точкой — даже когда сайт закрыт.',
-  'push.noObs':'Сначала укажите свою точку в панели «Надо мной».', 'push.unsupported':'Этот браузер не поддерживает уведомления.',
-  'push.denied':'Уведомления для этого сайта запрещены в настройках браузера.', 'push.max':'Уведомлять можно не больше чем о 10 спутниках.',
-  'push.on':n=>`Уведомления о пролётах включены: ${n}`, 'push.off':n=>`Уведомления о пролётах выключены: ${n}`,
-  'push.fail':'Не получилось включить уведомления. Попробуйте позже.', 'push.wait':'Подключаю уведомления…',
-  'a2hs.push':'На iPhone уведомления приходят, только если трекер добавлен на экран «Домой». Нажмите «Поделиться» внизу Safari, выберите «На экран „Домой“», откройте трекер оттуда и включите уведомления.',
   'quick.pass':(w,m)=>`Над вами — ${w}, до ${m}° над горизонтом`, 'quick.vis':'видно глазом',
   'alt.h':'Высота орбиты за месяц', 'alt.note':'Средняя высота за сутки по орбитальным данным; точка — один день.',
   'alt.aria':(a,b,n)=>`Высота орбиты: было ${a} км, стало ${b} км, дней: ${n}`,
@@ -1227,7 +1217,7 @@ ru:{
   'tour.4':'«Надо мной» покажет, какие спутники сейчас над вами, карту неба и когда пролетят «Рассветы». Точку можно выбрать на карте или найти город. Место остаётся только в вашем браузере.',
   'tour.5':'Внизу — машина времени: перемотка на ±3 суток и ускорение. «Сейчас» вернёт в реальное время. Готово — смотрите!',
   'tour.news':'«Новости» — космические новости из открытых лент и вкладка «Запуски»: ближайшие старты с отсчётом; кнопка «Космодром» покажет стартовый стол на глобусе. На телефоне — в меню «⋯».',
-  'tour.hNew':'Что нового', 'tour.n1':'Уведомления о пролётах: в карточке спутника нажмите «Уведомлять о пролётах» — за 10 минут до пролёта над вашей точкой придёт уведомление, даже если сайт закрыт. На iPhone сначала добавьте трекер на экран «Домой».',
+  'tour.hNew':'Что нового', 'tour.n1':'Новый вид: состояние спутника одной фразой, крупные кнопки в карточке, а на шкале времени — полоса рассвета: видно, когда в точке под камерой ночь, сумерки и день.',
   'tour.n2':'Поиск знает города: наберите «Казань» — и увидите, когда над ней пролетят спутники. В карточке теперь сразу видно, когда спутник будет над вами, и график высоты орбиты за месяц.',
   'tour.n3':'В «Надо мной» — красный экран для наблюдений ночью и сравнение «Рассвета» со Starlink и OneWeb над вашей точкой. У каждого пролёта — кнопка картинки для соцсетей.',
   'hint.tilt':'Наклон и поворот камеры: правая кнопка мыши или Shift + перетаскивание', 'hint.tiltTouch':'Наклон камеры: двумя пальцами вверх-вниз, поворот — вращением двух пальцев', 'card.expand':'Развернуть карточку', 'card.collapse':'Свернуть карточку',
@@ -1389,13 +1379,6 @@ en:{
   'follow.chaseLoad':'Loading the 3D model…', 'follow.chaseFail':'The model did not load — try “Satellite view”',
   'follow.chaseOn':'Flying along. The model is shown larger than real. “Exit” or “Back” returns the previous view',
   'follow.exited':'Flight stopped — back to the normal view',
-  'push.btn':'Notify me of passes', 'push.btnOn':'Pass notifications on',
-  'push.hint':'10 minutes before every pass over your point — even when the site is closed.',
-  'push.noObs':'First set your point in the “Overhead” panel.', 'push.unsupported':'This browser does not support notifications.',
-  'push.denied':'Notifications for this site are blocked in the browser settings.', 'push.max':'You can get notifications for up to 10 satellites.',
-  'push.on':n=>`Pass notifications on: ${n}`, 'push.off':n=>`Pass notifications off: ${n}`,
-  'push.fail':'Could not turn on notifications. Please try later.', 'push.wait':'Connecting notifications…',
-  'a2hs.push':'On iPhone, notifications arrive only when the tracker is on the Home Screen. Tap “Share” at the bottom of Safari, choose “Add to Home Screen”, open the tracker from there and turn notifications on.',
   'quick.pass':(w,m)=>`Over you ${w}, up to ${m}° high`, 'quick.vis':'visible to the naked eye',
   'alt.h':'Orbit altitude over a month', 'alt.note':'Daily mean altitude from the orbital elements; one dot per day.',
   'alt.aria':(a,b,n)=>`Orbit altitude: was ${a} km, now ${b} km, days: ${n}`,
@@ -1434,7 +1417,7 @@ en:{
   'tour.4':'“Overhead” shows which satellites are above you now, a sky map and when Rassvets will pass. Pick a point on the map or find a city. Your location stays in your browser.',
   'tour.5':'At the bottom is the time machine: scrub ±3 days and speed up. “Now” returns to real time. That’s it — enjoy!',
   'tour.news':'“News” — space news from public feeds and a “Launches” tab: upcoming launches with a countdown; the “Launch site” button marks the pad on the globe. On a phone it is in the “⋯” menu.',
-  'tour.hNew':'What’s new', 'tour.n1':'Pass notifications: in a satellite card tap “Notify me of passes” — you get a notification 10 minutes before each pass over your point, even with the site closed. On iPhone, add the tracker to the Home Screen first.',
+  'tour.hNew':'What’s new', 'tour.n1':'A new look: the satellite state in one sentence, large card buttons, and a dawn strip on the time bar showing night, twilight and day under the camera.',
   'tour.n2':'Search knows cities: type “Kazan” to see when satellites pass over it. The card now shows when the satellite will be over you and a month of orbit altitude.',
   'tour.n3':'“Overhead” has a red screen for night observing and compares Rassvet with Starlink and OneWeb over your point. Every pass has a button for a social media picture.',
   'hint.tilt':'Tilt and rotate the camera: right mouse button or Shift + drag', 'hint.tiltTouch':'Tilt the camera: two fingers up and down; rotate by twisting two fingers', 'card.expand':'Expand card', 'card.collapse':'Collapse card',
@@ -4717,7 +4700,6 @@ function openSky(v){
 function setObserver(lat, lon, name){
   SKY.obs={lat:+lat.toFixed(2), lon:+lon.toFixed(2)}; if(name) SKY.obs.name=String(name).slice(0,80);
   SKY.cmp=null; SKY.cmpTok++; SKY.picking=false; $('#app').classList.remove('picking');
-  if(PUSHN.size && pushSupported() && Notification.permission==='granted') pushSync().catch(e=>console.warn('[rassvet] уведомления', e));
   try{ localStorage.setItem('rassvet.obs', JSON.stringify(SKY.obs)); }catch(e){}
   SKY.passCache.clear(); SKY.passes=null; SKY.cover=null; renderSky(); computeRassvetPasses(); computeCover();
 }
@@ -4810,59 +4792,13 @@ function renderPassSec(s){
   let r=SKY.passCache.get(s.uid);
   if(r && r.kind==='passes' && r.list.length && S.time.sim>r.list[0].end){ SKY.passCache.delete(s.uid); r=null; }
   if(!r || r.pending){ ensurePass(s); set('calc|'+LANG, `<p class="note">${esc(t('pass.calc'))}</p>`); return; }
-  const pk='|p'+(PUSHN.has(s.norad)?1:0)+(pushBusy===s.norad?'b':'')+PUSH_AV, bindPush=()=>{ const b=$('#pushTgl'); if(b) b.onclick=()=>togglePush(s,b).then(()=>{ el.dataset.k=''; renderPassSec(s); }); };
-  if(r.kind!=='passes' || !r.list.length){ set(s.uid+'|'+r.kind+'|'+LANG+pk, `<p class="note">${passText(s)}</p>`+(r.kind==='passes'?pushRowHTML(s):''), bindPush); return; }
+  if(r.kind!=='passes' || !r.list.length){ set(s.uid+'|'+r.kind+'|'+LANG, `<p class="note">${passText(s)}</p>`); return; }
   const items=r.list.map(p=>({s,p}));
-  set(s.uid+'|'+r.list.map(p=>p.start).join(',')+'|'+items.map(x=>REMIND.has(remKey(s,x.p))?1:0).join('')+'|'+LANG+pk,
+  set(s.uid+'|'+r.list.map(p=>p.start).join(',')+'|'+items.map(x=>REMIND.has(remKey(s,x.p))?1:0).join('')+'|'+LANG,
     `<div class="skychart mini">${skyChartSVG({arcs:[{pts:passArc(s,r.list[0]), c:rgbCss(colorOf(s)), label:fmtClock(r.list[0].start)}]})}</div>`
     +`<ul class="plist">${items.map(({p},k)=>`<li><span>${esc(t('pass.fmt', fmtWhen(p.start), Math.round(p.max), compass(p.az0), compass(p.az1)))}${p.vis?` <span class="tag vis" title="${esc(t('sky.visTip'))}">${esc(t('sky.visible'))}</span>`:''}</span>`
-      +passBtnsHTML(k,s,p)+`</li>`).join('')}</ul>`+pushRowHTML(s),
-    ()=>{ bindPassBtns(el, items, ()=>{ el.dataset.k=''; }); bindPush(); });
-}
-function pushRowHTML(s){
-  if(!pushSupported() && !isIOS) return ''; pushProbe(); if(PUSH_AV!==1) return '';   // на копиях сайта без сервиса уведомлений кнопки нет
-  const on=PUSHN.has(s.norad), busy=pushBusy===s.norad;
-  return `<div class="pushrow"><button type="button" class="tbtn" id="pushTgl" aria-pressed="${on}"${busy?' disabled aria-busy="true"':''}><svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 14.2a1.7 1.7 0 0 0 1.7-1.6H6.3A1.7 1.7 0 0 0 8 14.2zM3.2 11.6h9.6l-1.2-1.7V7a3.6 3.6 0 0 0-7.2 0v2.9z" fill="${on?'currentColor':'none'}" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>${esc(t(busy?'push.wait':on?'push.btnOn':'push.btn'))}</button><span class="note">${esc(t('push.hint'))}</span></div>`;
-}
-
-/* ===== Уведомления о пролётах: Web Push через сервис сайта (/api/push/). До 10 спутников на устройство (rassvet.push),
-   точка — из «Надо мной» (округляется до 0,1°); при смене точки подписка обновляется. ===== */
-const PUSHN=new Map();   // NORAD -> имя для текста уведомления
-let pushBusy=0;          // NORAD, для которого идёт подписка (кнопка «Подключаю…»)
-let PUSH_AV, pushKey=null;   // есть ли сервис на этом сайте: undefined — не проверяли, 0 — проверяем или нет, 1 — есть
-function pushProbe(){
-  if(PUSH_AV!==undefined) return; PUSH_AV=0;
-  fetch('/api/push/key').then(r=>r.ok ? r.json() : null).then(j=>{ if(!j || !j.key) return; pushKey=j.key; PUSH_AV=1;
-    const sec=$('#passSec'); if(sec && S.selected>=0){ sec.dataset.k=''; renderPassSec(sats[S.selected]); } }).catch(()=>{});
-}
-try{ const a=JSON.parse(localStorage.getItem('rassvet.push')||'[]'); if(Array.isArray(a)) a.forEach(x=>{ if(x && Number.isInteger(x.n)) PUSHN.set(x.n, String(x.name||x.n)); }); }catch(e){}
-const pushSupported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window && window.isSecureContext;
-function pushSave(){ try{ localStorage.setItem('rassvet.push', JSON.stringify([...PUSHN].map(([n,name])=>({n,name})))); }catch(e){} }
-const b64u = x => { const b=atob((x+'='.repeat((4-x.length%4)%4)).replace(/-/g,'+').replace(/_/g,'/')); return Uint8Array.from(b, c=>c.charCodeAt(0)); };
-const postJSON = (u, o) => fetch(u, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(o)});
-async function pushSync(){
-  const reg=await navigator.serviceWorker.ready; let sub=await reg.pushManager.getSubscription();
-  if(!PUSHN.size){ if(sub){ await postJSON('/api/push/unsub', {sub:{endpoint:sub.endpoint}}).catch(()=>{}); await sub.unsubscribe().catch(()=>{}); } return; }
-  if(!sub){ if(!pushKey){ const r=await fetch('/api/push/key'); if(!r.ok) throw new Error('key '+r.status); pushKey=(await r.json()).key; }
-    sub=await reg.pushManager.subscribe({userVisibleOnly:true, applicationServerKey:b64u(pushKey)}); }
-  const r=await postJSON('/api/push/sub', {sub:sub.toJSON(), lat:SKY.obs.lat, lon:SKY.obs.lon, lang:LANG, sats:[...PUSHN].map(([n,name])=>({n,name}))});
-  if(!r.ok) throw new Error('sub '+r.status);
-}
-async function togglePush(s, btn){
-  const on=!PUSHN.has(s.norad);
-  if(on){
-    if(!SKY.obs){ toast(t('push.noObs'), 3500); openSky(true); return; }
-    if(isIOS && !standalone()){ showInstall(true, 'push'); return; }
-    if(!pushSupported()){ toast(t('push.unsupported'), 4000); return; }
-    if(PUSHN.size>=10){ toast(t('push.max'), 4000); return; }
-    let perm=Notification.permission; if(perm==='default'){ try{ perm=await Notification.requestPermission(); }catch(e){} }
-    if(perm!=='granted'){ toast(t('push.denied'), 4500); return; }
-    PUSHN.set(s.norad, s.name);
-  } else PUSHN.delete(s.norad);
-  pushBusy=s.norad; const sec=$('#passSec'); if(sec){ sec.dataset.k=''; renderPassSec(s); }
-  try{ await pushSync(); pushSave(); toast(t(on?'push.on':'push.off', s.name), 3500); }
-  catch(e){ console.warn('[rassvet] уведомления', e); if(on) PUSHN.delete(s.norad); else PUSHN.set(s.norad, s.name); toast(t('push.fail'), 4500); }
-  finally{ pushBusy=0; }
+      +passBtnsHTML(k,s,p)+`</li>`).join('')}</ul>`,
+    ()=>bindPassBtns(el, items, ()=>{ el.dataset.k=''; }));
 }
 function passText(s){
   let r=SKY.passCache.get(s.uid);
@@ -5055,13 +4991,13 @@ const standalone = () => window.matchMedia('(display-mode: standalone)').matches
 function a2hsState(){ try{ return JSON.parse(localStorage.getItem('rassvet.a2hs')||'{}')||{}; }catch(e){ return {}; } }
 function a2hsSave(st){ try{ localStorage.setItem('rassvet.a2hs', JSON.stringify(st)); }catch(e){} }
 function canInstall(){ return !EMBED && !standalone() && (isIOS || !!installEvt); }
-function showInstall(force, why){
+function showInstall(force){
   if(!canInstall() || document.getElementById('a2hs')) return;
   const st=a2hsState();
   if(!force && (st.off || (st.later && Date.now()<st.later) || (st.visits||0)<2 || document.querySelector('.tour'))) return;
   const box=document.createElement('div'); box.className='a2hs glass'; box.id='a2hs'; box.setAttribute('role','dialog'); box.setAttribute('aria-labelledby','a2hsH');
   const share='<svg width="16" height="18" viewBox="0 0 16 18" aria-hidden="true"><path d="M8 11V1.5M4.8 4.5L8 1.3l3.2 3.2M5 7.5H3.5a1 1 0 0 0-1 1V16a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V8.5a1 1 0 0 0-1-1H11" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-  box.innerHTML=`<h3 id="a2hsH">${esc(t('a2hs.h'))}</h3><p>${why==='push' ? share+' '+esc(t('a2hs.push')) : isIOS && !installEvt ? share+' '+esc(t('a2hs.ios')) : esc(t('a2hs.other'))}</p>
+  box.innerHTML=`<h3 id="a2hsH">${esc(t('a2hs.h'))}</h3><p>${isIOS && !installEvt ? share+' '+esc(t('a2hs.ios')) : esc(t('a2hs.other'))}</p>
     <div class="acts"><button type="button" class="tbtn" data-a="never">${esc(t('a2hs.never'))}</button><button type="button" class="tbtn" data-a="later">${esc(t('a2hs.later'))}</button>${installEvt?`<button type="button" class="btn-primary" data-a="install">${esc(t('a2hs.install'))}</button>`:''}</div>
     <button type="button" class="x" data-a="later" aria-label="${esc(t('a2hs.close'))}">×</button>`;
   box.querySelectorAll('[data-a]').forEach(b=>b.onclick=async()=>{ const a=b.dataset.a, s2=a2hsState();
@@ -5422,7 +5358,7 @@ function startTour(force){
                           {k:'tour.4', hl:()=>'#btnSky'},
                           {k:'tour.news', hl:()=>mqMobile.matches?'#btnMore':'#btnNews'},
                           {k:'tour.5', hl:()=>'#timebar'} ]
-                      : [ {k:'tour.n1', hl:()=>null}, {k:'tour.n2', hl:()=>mqMobile.matches?'#btnSearch':'#searchBox'}, {k:'tour.n3', hl:()=>'#btnSky'} ];
+                      : [ {k:'tour.n1', hl:()=>'#timebar'}, {k:'tour.n2', hl:()=>mqMobile.matches?'#btnSearch':'#searchBox'}, {k:'tour.n3', hl:()=>'#btnSky'} ];
   let i=0, hlEl=null; const box=document.createElement('div'); box.className='tour glass'; box.setAttribute('role','dialog'); box.setAttribute('aria-live','polite');
   const done=()=>{ if(hlEl) hlEl.classList.remove('tour-hl'); box.remove(); try{ localStorage.setItem('rassvet.tour','1'); localStorage.setItem('rassvet.tour3','1'); }catch(e){} };
   const render=()=>{

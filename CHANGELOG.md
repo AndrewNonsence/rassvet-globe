@@ -3,6 +3,14 @@
 Здесь — что меняется на странице и в репозитории. Даты по UTC.
 What changes on the page and in the repository. Dates are UTC.
 
+## v1.13.1 — 2026-10-17
+
+### Русский
+- **Убраны уведомления о пролётах** (Web Push). Напоминание за 5 минут, пока вкладка открыта, и файл для календаря остались.
+
+### English
+- **Pass notifications (Web Push) removed.** The 5-minute reminder while the tab is open and the calendar file remain.
+
 ## v1.13.0 — 2026-10-17
 
 ### Русский
