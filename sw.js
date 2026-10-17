@@ -60,22 +60,3 @@ async function fresh(r, name) {   // из кэша сразу, свежая ко
   const net = fetch(r).then(res => { if (res.ok) c.put(r, res.clone()); return res; }).catch(() => null);
   return hit || (await net) || Response.error();
 }
-
-/* Уведомление о пролёте (Web Push, сервис push): заголовок и текст готовит сервер, по нажатию — трекер с этим спутником */
-self.addEventListener('push', e => {
-  let m = {};
-  try { m = e.data ? e.data.json() : {}; } catch (err) { m = { body: e.data && e.data.text() }; }
-  e.waitUntil(self.registration.showNotification(m.title || 'Рассвет', {
-    body: m.body || '', tag: m.tag, renotify: !!m.tag, icon: '/icon-192.png', badge: '/icon-192.png', data: { url: m.url || '/' },
-  }));
-});
-self.addEventListener('notificationclick', e => {
-  e.notification.close();
-  const url = new URL((e.notification.data && e.notification.data.url) || '/', self.location.origin).href;
-  e.waitUntil((async () => {
-    for (const c of await self.clients.matchAll({ type: 'window', includeUncontrolled: true })) {
-      if (new URL(c.url).origin === self.location.origin && 'focus' in c) { await c.focus(); if ('navigate' in c) await c.navigate(url); return; }
-    }
-    await self.clients.openWindow(url);
-  })());
-});
