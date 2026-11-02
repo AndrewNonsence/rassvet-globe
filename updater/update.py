@@ -88,11 +88,21 @@ def iri_to_uri(url):
     return urllib.parse.quote(url, safe=":/?#[]@!$&'()*+,;=%~")
 
 
-def http_get(url, http_cfg, ua, data=None, opener=None, raw=False):
+def read_limited(stream, limit):
+    body = stream.read(limit + 1)
+    if len(body) > limit:
+        raise ValueError("ответ больше лимита")
+    return body
+
+
+def http_get(url, http_cfg, ua, data=None, opener=None, raw=False, max_bytes=None):
     """GET/POST с таймаутом и повторами. 4xx (кроме 408/429) не повторяем — это не временная ошибка.
     raw=True — вернуть байты (картинки), иначе текст."""
     retries, backoff = int(http_cfg.get("retries", 3)), float(http_cfg.get("backoff_seconds", 5))
     opener = opener or urllib.request.build_opener()
+    limit = MAX_DOWNLOAD if max_bytes is None else min(MAX_DOWNLOAD, max_bytes)
+    if limit <= 0:
+        raise ValueError("лимит ответа должен быть положительным")
     last = None
     for attempt in range(retries + 1):
         if attempt:
@@ -102,11 +112,10 @@ def http_get(url, http_cfg, ua, data=None, opener=None, raw=False):
         req = urllib.request.Request(iri_to_uri(url), data=data, headers={"User-Agent": ua, "Accept-Encoding": "gzip"})
         try:
             with opener.open(req, timeout=float(http_cfg.get("timeout_seconds", 60))) as r:
-                body = r.read(MAX_DOWNLOAD + 1)
-                if len(body) > MAX_DOWNLOAD:
-                    raise ValueError("ответ больше лимита")
+                body = read_limited(r, limit)
                 if r.headers.get("Content-Encoding") == "gzip":
-                    body = gzip.decompress(body)
+                    with gzip.GzipFile(fileobj=io.BytesIO(body)) as decoded:
+                        body = read_limited(decoded, limit)
                 return body if raw else body.decode("utf-8", "replace")
         except urllib.error.HTTPError as e:
             last = f"HTTP {e.code}"
@@ -665,7 +674,7 @@ def publish_news_images(news, cfg, ua, out_dir):
             continue
         try:
             url = _news_image_url(src)
-            body = http_get(url, http_cfg, ua, raw=True)
+            body = http_get(url, http_cfg, ua, raw=True, max_bytes=NEWS_IMG_MAX)
             ext = ("jpg" if body[:2] == bytes([0xFF, 0xD8]) else "png" if body[:8] == bytes([0x89]) + b"PNG" + bytes([13, 10, 26, 10])
                    else "webp" if body[:4] == b"RIFF" and body[8:12] == b"WEBP" else None)
             if not ext or len(body) > NEWS_IMG_MAX:

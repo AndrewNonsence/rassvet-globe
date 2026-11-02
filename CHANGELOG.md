@@ -3,6 +3,13 @@
 Здесь — что меняется на странице и в репозитории. Даты по UTC.
 What changes on the page and in the repository. Dates are UTC.
 
+## Не выпущено / Unreleased
+
+- Ограничен размер загружаемых и распакованных ответов, включая превью новостей.
+- Добавлены автономные проверки загрузчика, каталога и истории изменений.
+- Downloaded and decompressed responses now have size limits, including news previews.
+- Added offline checks for the updater, catalog and revision history.
+
 ## v1.13.1 — 2026-10-17
 
 ### Русский

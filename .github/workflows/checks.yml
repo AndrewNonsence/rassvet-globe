@@ -1,0 +1,23 @@
+name: checks
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Offline checks
+        run: |
+          python3 -B updater/test_download.py
+          python3 -B scripts/catalog/check_catalog.py index.html
+      - name: History check
+        run: |
+          curl -fsSL --max-time 120 -o /tmp/check.tar.gz https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz
+          echo '551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  /tmp/check.tar.gz' | sha256sum -c -
+          mkdir /tmp/check-bin
+          tar -xzf /tmp/check.tar.gz -C /tmp/check-bin gitleaks
+          /tmp/check-bin/gitleaks git . --log-opts='--all --diff-merges=first-parent' --redact --no-banner
