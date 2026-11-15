@@ -16,6 +16,7 @@ jobs:
           python3 -B updater/test_freshness.py
           python3 -B updater/test_health.py
           node tests/test_coverage.cjs index.html
+          node tests/test_terrain.cjs index.html
           python3 -B scripts/catalog/check_catalog.py index.html
       - name: History check
         run: |

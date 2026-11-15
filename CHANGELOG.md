@@ -5,6 +5,22 @@ What changes on the page and in the repository. Dates are UTC.
 
 ## Не выпущено / Unreleased
 
+## v1.14.1 — 2026-11-15
+
+### Русский
+- Ускорено построение сетки рельефа: общие значения строк и столбцов и прямая запись индексов в типизированный массив.
+- Проекции общих углов тайлов используются повторно в пределах одного выбора камеры. Разрешение текстур, сетка и выбранные тайлы сохранены.
+- Исправлен некорректный цвет выбора невыбираемой поверхности рельефа при отсутствии готового terrain cover.
+- Добавлены CPU-бенчмарк и проверка побайтного совпадения геометрии с 1.14.0, выбора тайлов и количества проекций. Проверка включена в CI.
+- В локальном CPU-тесте сетка 128×128 строилась примерно на 39% быстрее; наклонный вид использовал 192 проекции вместо 560. Эти числа не означают такой же рост FPS или скорости загрузки страницы. Методика — docs/performance.md.
+
+### English
+- Terrain generation reuses row and column calculations and fills triangle indices directly into a typed array.
+- Shared tile corners are projected once per selection. Image resolution, mesh detail and selected tiles are preserved.
+- Fixed invalid picking colors emitted by non-pickable terrain without a ready terrain cover.
+- Added a CPU benchmark and CI checks for byte-identical geometry against 1.14.0, tile selection and projection counts.
+- The local CPU benchmark generated a 128×128 mesh about 39% faster; the tilted view used 192 projections instead of 560. This is not an equivalent FPS or page-load improvement. See docs/performance.md.
+
 ## v1.14.0 — 2026-11-15
 
 ### Русский

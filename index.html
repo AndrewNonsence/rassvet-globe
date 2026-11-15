@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta name="application-version" content="1.14.0">
+<meta name="application-version" content="1.14.1">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Рассвет — трекер спутников</title>
 <link rel="stylesheet" href="vendor/fonts-5.3.0/fonts.css" media="print" onload="this.media='all'">
@@ -4024,6 +4024,10 @@ const earthModule={
   name:'earth',
   vs: EARTH_UBO+'out vec3 earth_vPos;\nout vec3 earth_vNormal;\n',
   fs: EARTH_UBO+EARTH_FS_LIB,
+  // Поверхность не выбирается. Без готового terrain cover обычный picking-код сетки
+  // писал alpha=255 без индекса слоя. Cover возвращает свой цвет раньше; здесь
+  // обнуляем только оставшуюся поверхность перед picking-фильтром (order 99).
+  inject:{'fs:DECKGL_FILTER_COLOR':{order:98,injection:'if (bool(picking.isActive) && !bool(picking.isAttribute)) { color=vec4(0.0); return; }'}},
   uniformTypes:{ sunDir:'vec3<f32>', lit:'f32', camPos:'vec3<f32>', reliefK:'f32', nearGain:'vec3<f32>', slopeMax:'f32',
     nearBias:'vec3<f32>', cloudAmt:'f32', sink:'f32', nightGain:'f32', zoom:'f32', exposure:'f32', cloudLo:'f32', cloudHi:'f32', nightRect:'vec3<f32>', hasNight:'f32', meshSink:'f32', nightAmb:'f32' }
 };
@@ -4113,19 +4117,27 @@ function terrainMesh(px, size, idx, G, sink=0){
   const latOf=fy=>Math.atan(Math.sinh(Math.PI*(1-2*(idx.y+fy)/n)))*R2D, lngOf=fx=>(idx.x+fx)/n*360-180;
   const tileM=2*Math.PI*EARTH_RM/n/size;                         // метров на пиксель тайла на экваторе
   const cnt=V*V+4*V, pos=new Float32Array(cnt*3), uv=new Float32Array(cnt*2), nrm=new Float32Array(cnt*3);
+  // Широта одинакова во всей строке, долгота — в столбце. Считаем их и тригонометрию один раз;
+  // Float64 сохраняет прежние вычисления до окончательной записи в Float32-атрибуты.
+  const lats=new Float64Array(V), lngs=new Float64Array(V), sinLat=new Float64Array(V), cosLat=new Float64Array(V), sinLng=new Float64Array(V), cosLng=new Float64Array(V);
+  for(let i=0;i<V;i++){
+    lats[i]=latOf(i/G); lngs[i]=lngOf(i/G);
+    sinLat[i]=Math.sin(lats[i]*D2R); cosLat[i]=Math.cos(lats[i]*D2R);
+    sinLng[i]=Math.sin(lngs[i]*D2R); cosLng[i]=Math.cos(lngs[i]*D2R);
+  }
   let zmin=Infinity, zmax=-Infinity;
-  const put=(i,fx,fy,z,N)=>{ pos[i*3]=lngOf(fx); pos[i*3+1]=latOf(fy); pos[i*3+2]=z; uv[i*2]=fx; uv[i*2+1]=fy; nrm[i*3]=N[0]; nrm[i*3+1]=N[1]; nrm[i*3+2]=N[2]; };
-  const normalAt=(x,y,lat,lng)=>{
-    const m=tileM*Math.cos(lat*D2R), d=Math.max(1,Math.round(step/2));
+  const put=(i,fx,fy,z,N,lng=lngOf(fx),lat=latOf(fy))=>{ pos[i*3]=lng; pos[i*3+1]=lat; pos[i*3+2]=z; uv[i*2]=fx; uv[i*2+1]=fy; nrm[i*3]=N[0]; nrm[i*3+1]=N[1]; nrm[i*3+2]=N[2]; };
+  const normalAt=(x,y,i,j)=>{
+    const m=tileM*cosLat[j], d=Math.max(1,Math.round(step/2));
     const ex=(el(x+d,y)-el(x-d,y))/(2*d*m)*k, ny=(el(x,y-d)-el(x,y+d))/(2*d*m)*k;   // наклоны на восток и на север
-    const up=unitFromLngLat(lng,lat), l=Math.hypot(up[0],up[1])||1, e=[-up[1]/l, up[0]/l, 0];
+    const up=[sinLng[i]*cosLat[j],-cosLng[i]*cosLat[j],sinLat[j]], l=Math.hypot(up[0],up[1])||1, e=[-up[1]/l, up[0]/l, 0];
     const no=[up[1]*e[2]-up[2]*e[1], up[2]*e[0]-up[0]*e[2], up[0]*e[1]-up[1]*e[0]];
     const v=[up[0]-ex*e[0]-ny*no[0], up[1]-ex*e[1]-ny*no[1], up[2]-ex*e[2]-ny*no[2]], L=Math.hypot(v[0],v[1],v[2]);
     return [v[0]/L, v[1]/L, v[2]/L];
   };
   for(let j=0;j<V;j++) for(let i=0;i<V;i++){
     const x=Math.min(size-1,Math.round(i*step)), y=Math.min(size-1,Math.round(j*step)), fx=i/G, fy=j/G, z=el(x,y)*k-sink;
-    zmin=Math.min(zmin,z); zmax=Math.max(zmax,z); put(j*V+i, fx, fy, z, normalAt(x,y,latOf(fy),lngOf(fx)));
+    zmin=Math.min(zmin,z); zmax=Math.max(zmax,z); put(j*V+i, fx, fy, z, normalAt(x,y,i,j),lngs[i],lats[j]);
   }
   // юбки: копии краевых вершин, опущенные вниз, закрывают щели между соседними тайлами разной детальности
   const skirt=Math.max(30, tileM*step*2)*k, skirtOf=new Map(); let s=V*V;
@@ -4133,12 +4145,13 @@ function terrainMesh(px, size, idx, G, sink=0){
     if(skirtOf.has(key)) continue; const b=key*3;
     put(s, uv[key*2], uv[key*2+1], pos[b+2]-skirt, [nrm[b],nrm[b+1],nrm[b+2]]); skirtOf.set(key, s++);
   }
-  const ix=[];
-  for(let j=0;j<G;j++) for(let i=0;i<G;i++){ const a=j*V+i, b=a+1, c=a+V, d=c+1; ix.push(a,c,b, b,c,d); }
-  const wall=(a,b)=>{ const sa=skirtOf.get(a), sb=skirtOf.get(b); ix.push(a,sa,b, b,sa,sb); };
+  const ix=new Uint32Array((G*G+4*G)*6); let at=0;
+  const tri=(a,b,c)=>{ ix[at++]=a; ix[at++]=b; ix[at++]=c; };
+  for(let j=0;j<G;j++) for(let i=0;i<G;i++){ const a=j*V+i, b=a+1, c=a+V, d=c+1; tri(a,c,b); tri(b,c,d); }
+  const wall=(a,b)=>{ const sa=skirtOf.get(a), sb=skirtOf.get(b); tri(a,sa,b); tri(b,sa,sb); };
   for(let i=0;i<G;i++){ wall(i,i+1); wall(G*V+i+1,G*V+i); wall((i+1)*V,i*V); wall(i*V+G,(i+1)*V+G); }
   return { header:{ vertexCount:s, boundingBox:[[lngOf(0),latOf(1),zmin-skirt],[lngOf(1),latOf(0),zmax]] }, mode:4, topology:'triangle-list',
-    indices:{ value:new Uint32Array(ix), size:1 },
+    indices:{ value:ix, size:1 },
     attributes:{ POSITION:{ value:pos.subarray(0,s*3), size:3 }, TEXCOORD_0:{ value:uv.subarray(0,s*2), size:2 }, COLOR_0:{ value:nrm.subarray(0,s*3), size:3 } } };
 }
 /* Загрузка тайлов ближнего вида. Сервер ограничивает частоту запросов (лишние получают 429), и при быстром приближении
@@ -4272,10 +4285,16 @@ class NearTileset extends deck._Tileset2D {
     if(idx.length<12 || !vp) return idx;
     const min=isMobileGPU() ? 360 : 150;
     const lng=(x,n)=>x/n*360-180, lat=(y,n)=>Math.atan(Math.sinh(Math.PI*(1-2*y/n)))*R2D;
-    const size=t=>{ const n=2**t.z; let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
-      for(const [cx,cy] of [[t.x,t.y],[t.x+1,t.y],[t.x,t.y+1],[t.x+1,t.y+1]]){ const q=vp.project([lng(cx,n),lat(cy,n),0]);
+    // Только на время этого выбора: соседние тайлы делят углы, а проходы — размеры.
+    // Новый viewport всегда получает новый кэш; критерий детализации остаётся прежним.
+    const corners=new Map(), sizes=new Map();
+    const size=t=>{ const key=t.z+'/'+t.x+'/'+t.y; if(sizes.has(key)) return sizes.get(key);
+      const n=2**t.z; let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
+      for(const [cx,cy] of [[t.x,t.y],[t.x+1,t.y],[t.x,t.y+1],[t.x+1,t.y+1]]){
+        const ck=t.z+'/'+cx+'/'+cy; let q=corners.get(ck);
+        if(!q){ q=vp.project([lng(cx,n),lat(cy,n),0]); corners.set(ck,q); }
         if(!Number.isFinite(q[0])||!Number.isFinite(q[1])) return Infinity; x0=Math.min(x0,q[0]); y0=Math.min(y0,q[1]); x1=Math.max(x1,q[0]); y1=Math.max(y1,q[1]); }
-      return Math.max(x1-x0, y1-y0); };
+      const value=Math.max(x1-x0, y1-y0); sizes.set(key,value); return value; };
     let cur=idx;
     for(let pass=0; pass<3; pass++){
       const out=new Map(); let changed=false;

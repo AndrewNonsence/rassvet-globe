@@ -64,6 +64,10 @@ no CDN. An orbit snapshot is embedded in the page, so the site works right after
   </tr>
 </table>
 
+### Version 1.14.1: terrain preparation
+
+Terrain mesh generation reuses row and column calculations; tile selection reuses shared corner projections. Image resolution, mesh detail and selected tiles are preserved, with byte-for-byte geometry checks against version 1.14.0. Fixed invalid picking colors over terrain. [Measurements and quality checks](docs/performance.md).
+
 ### Version 1.14.0: orbit freshness
 
 The `--loop` mode refreshes elements every six hours by default. Set `schedule.interval_hours` in `updater/sources.yml`; `UPDATE_HOUR_UTC` sets the anchor hour. Page build time and orbital epoch are separate: a newly built page does not guarantee recent elements for every spacecraft.
