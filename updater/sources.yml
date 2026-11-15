@@ -12,11 +12,14 @@
 #           JSON-блоки (<script type="application/json">) настоящего трекера обновляются
 #           по NORAD из общего набора всех источников, отдельно их перечислять не нужно.
 
+schedule:
+  interval_hours: 6   # 3, 9, 15, 21 UTC при UPDATE_HOUR_UTC=3; допустимы 2, 3, 4, 6, 8, 12, 24
+
 http:
   timeout_seconds: 60
   retries: 3            # повторов после первой попытки; пауза backoff * 3^n: 5, 15, 45 с
   backoff_seconds: 5
-  user_agent: "RassvetTracker/1.0 (+https://{domain}/; daily orbit refresh, 1 req/source/day)"
+  user_agent: "RassvetTracker/1.0 (+https://{domain}/; scheduled orbit refresh, one request per source per cycle)"
 
 sources:
   - id: celestrak-rassvet

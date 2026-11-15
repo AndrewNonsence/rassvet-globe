@@ -6,7 +6,7 @@
    Тайлы ближнего вида сюда не попадают: их хранит обычный кэш браузера (сервер разрешает 30 дней). Раньше worker сам
    складывал их в свой кэш и на каждый тайл перебирал до 600 записей — когда кэш заполнялся, новые места грузились по 5–7 с.
    Остальное — из кэша с обновлением в фоне. */
-const V = 'rassvet-v5', SHELL = V + '-shell', STATIC = V + '-static';   // v5: старый кэш тайлов удаляется при активации
+const V = 'rassvet-v6', SHELL = V + '-shell', STATIC = V + '-static';   // v6: оболочка кэшируется только для страниц трекера
 
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', e => e.waitUntil((async () => {
@@ -20,7 +20,8 @@ self.addEventListener('fetch', e => {
   const u = new URL(r.url);
   if (u.origin !== location.origin) return;
   const p = u.pathname;
-  if (r.mode === 'navigate' || p === '/' || p === '/index.html') return e.respondWith(page(r));
+  if (p === '/' || p === '/index.html') return e.respondWith(page(r));
+  if (r.mode === 'navigate') return;
   if (p.startsWith('/vendor/') || /^\/globe\/.+\.(webp|jpg)$/.test(p) || /^\/(data-|geo-detail\.).+\.json$/.test(p)) return e.respondWith(cacheFirst(r, STATIC));
   if (p === '/globe/globe.json' || p.startsWith('/clouds/') || p.startsWith('/models/') || /\.(png|ico|webmanifest)$/.test(p)) return e.respondWith(fresh(r, STATIC));
 });

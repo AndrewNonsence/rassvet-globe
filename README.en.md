@@ -64,6 +64,13 @@ no CDN. An orbit snapshot is embedded in the page, so the site works right after
   </tr>
 </table>
 
+### Version 1.14.0: orbit freshness
+
+The `--loop` mode refreshes elements every six hours by default. Set `schedule.interval_hours` in `updater/sources.yml`; `UPDATE_HOUR_UTC` sets the anchor hour. Page build time and orbital epoch are separate: a newly built page does not guarantee recent elements for every spacecraft.
+
+Predictions exclude elements older than seven days, and positions are disabled after thirty days. The last known epoch and original elements remain available. Use `/data-health.json` or `python3 updater/health.py --url https://YOUR_DOMAIN` to check publication time and freshness of the main systems. Coverage uses a shared five-minute grid; short passes between samples may be missed.
+
+
 ## 🔢 By the numbers
 
 | | |
@@ -190,8 +197,8 @@ On a weak GPU the page switches to a lighter globe mode by itself.
 
 ```mermaid
 flowchart LR
-    CT["🛰️ CelesTrak<br/>orbital elements, SATCAT"] -->|once a day| UP["⚙️ updater/update.py<br/>validate and build"]
-    FD["📰 news, clouds,<br/>upcoming launches"] -->|once a day,<br/>launches every 6 h| UP
+    CT["🛰️ CelesTrak<br/>orbital elements, SATCAT"] -->|every 6 hours| UP["⚙️ updater/update.py<br/>validate and build"]
+    FD["📰 news, clouds,<br/>upcoming launches"] -->|every 6 hours,<br/>launches every 6 h| UP
     UP -->|embeds data| IDX["📄 index.html"]
     UP -->|large catalogues separately| BIG["📦 data-starlink.*.json<br/>downloaded when needed"]
     IDX --> BR["🌐 browser"]
@@ -215,15 +222,15 @@ flowchart LR
 
 ## 🖥 Your own server from scratch
 
-The site is static, so it can live anywhere — even on GitHub Pages. To have the orbits refresh daily by
+The site is static, so it can live anywhere — even on GitHub Pages. To have the orbits refresh every 6 hours by
 themselves you need a small server: a web server serves the files and a timer runs the update script
-once a day.
+every 6 hours.
 
 ### Requirements
 
 | | Minimum | Notes |
 |---|---|---|
-| 💻 Server | 1 vCPU, **512 MB** RAM | serving static files is nearly free; the daily update takes up to ≈ 150 MB for 10–60 seconds |
+| 💻 Server | 1 vCPU, **512 MB** RAM | serving static files is nearly free; each update takes up to ≈ 150 MB for 10–60 seconds |
 | 💾 Disk | ≈ **200 MB** | clone ≈ 20 MB, Python venv ≈ 30 MB, built page and clouds ≈ 15 MB, logs |
 | 🐧 OS | Ubuntu 24.04 LTS or Debian 13 | any Linux with systemd and Python ≥ 3.10 works |
 | 🌐 Network | ports **80** and **443** open | outbound HTTPS to `celestrak.org` (and to news feeds and the cloud map if enabled) |
@@ -348,10 +355,10 @@ And its timer — `/etc/systemd/system/rassvet-globe-update.timer`:
 
 ```ini
 [Unit]
-Description=Rassvet globe: daily orbit update
+Description=Rassvet globe: orbit update every 6 hours
 
 [Timer]
-OnCalendar=*-*-* 03:30:00 UTC
+OnCalendar=*-*-* 03,09,15,21:30:00 UTC
 RandomizedDelaySec=20m
 Persistent=true
 
@@ -366,7 +373,7 @@ systemctl enable --now rassvet-globe-update.timer
 
 > [!IMPORTANT]
 > CelesTrak serves the same dataset at most once every two hours and answers frequent requests with
-> HTTP 403. Once a day leaves plenty of margin. If a download fails, the script falls back to the last
+> HTTP 403. A six-hour interval leaves margin. If a download fails, the script falls back to the last
 > good copy in `state/` and keeps the site on its previous version.
 
 ### 6. Check
@@ -733,7 +740,7 @@ upgrading a library means a new folder rather than editing the old one.
 - picks the freshest epoch for each satellite across all sources;
 - updates data blocks only, never the page markup or code, and checks the result against the template;
 - publishes atomically: visitors see either the old page or the new one in full;
-- modes `--once`, `--dry-run` and `--loop` (keeps running and updates once a day).
+- modes `--once`, `--dry-run` and `--loop` (keeps running and updates every 6 hours by default).
 
 **`updater/sources.yml`** says where data comes from: CelesTrak (`NAME=RASSVET` as TLE and
 `GROUP=active` as OMM JSON), optionally Space-Track, four RSS news feeds and the cloud map. Comments in

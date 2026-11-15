@@ -5,6 +5,22 @@ What changes on the page and in the repository. Dates are UTC.
 
 ## Не выпущено / Unreleased
 
+## v1.14.0 — 2026-11-15
+
+### Русский
+- Покрытие и сравнение группировок используют общую сетку 5 минут и одну выборку «Рассвета»; прежнее сравнение сбрасывается при новом прогнозе.
+- Элементы старше 7 суток исключены из прогнозов, старше 30 суток — из отображения позиции. Исторические элементы и последняя известная эпоха сохранены.
+- Свежесть записей и сводки пересчитываются при каждой сборке. Дата снимка видна в кратком подвале; пояснения к справочным статусам и SATCAT уточнены.
+- В режиме --loop обновление выполняется раз в 6 часов. Добавлены data-health.json и автономная проверка updater/health.py.
+- Добавлены тесты расчёта покрытия, отмены, старения данных, расписания и проверки свежести; инструкции RU/EN обновлены.
+
+### English
+- Coverage and network comparison share a five-minute grid and the same Rassvet samples. A new forecast invalidates the previous comparison.
+- Elements older than seven days are excluded from predictions; positions are disabled after thirty days. Historical elements and the last known epoch remain available.
+- Freshness summaries are rebuilt each time. The short footer shows the data date; reference status and SATCAT explanations distinguish their source dates.
+- The --loop mode refreshes every six hours by default. Added data-health.json and the standalone updater/health.py check.
+- Added checks for coverage, cancellation, data ageing, scheduling and freshness. Updated RU/EN instructions.
+
 - Ограничен размер загружаемых и распакованных ответов, включая превью новостей.
 - Добавлены автономные проверки загрузчика, каталога и истории изменений.
 - Downloaded and decompressed responses now have size limits, including news previews.

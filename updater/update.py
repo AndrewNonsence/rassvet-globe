@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-Updater: раз в сутки скачивает орбитальные данные, проверяет их и публикует обновлённую страницу трекера.
+Updater: раз в 6 часов скачивает орбитальные данные, проверяет их и публикует обновлённую страницу трекера.
 Когда менять: логика загрузки, проверки или сборки страницы. Источники — в sources.yml.
 
 Свежие элементы орбит -> валидация -> сборка HTML из шаблона -> атомарная публикация.
 
 Режимы:
     update.py --once      одно обновление и выход
-    update.py --loop      постоянная работа: догоняет пропуск при старте, дальше раз в сутки в UPDATE_HOUR_UTC
+    update.py --loop      постоянная работа: догоняет пропуск при старте, дальше по schedule.interval_hours с опорой UPDATE_HOUR_UTC
     update.py --dry-run   всё, кроме публикации: результат пишется в <data>/state/dry-run/index.html
 
 Шаблон не меняется. В копии подменяется только содержимое data-блоков:
@@ -19,6 +19,7 @@ Updater: раз в сутки скачивает орбитальные данн
 import argparse, datetime as dt, email.utils, gzip, hashlib, html, http.cookiejar, io, json, logging, logging.handlers, math, os, re
 import signal, sys, tempfile, time, urllib.error, urllib.parse, urllib.request
 import xml.etree.ElementTree as ET
+from health import report as orbit_health_report
 
 import yaml
 from sgp4 import omm as sgp4_omm
@@ -39,7 +40,7 @@ REUSE_SECONDS = 2 * 3600
 OMM_KEYS = ["EPOCH", "MEAN_MOTION", "ECCENTRICITY", "INCLINATION", "RA_OF_ASC_NODE",
             "ARG_OF_PERICENTER", "MEAN_ANOMALY", "BSTAR", "MEAN_MOTION_DOT", "MEAN_MOTION_DDOT"]
 SEO_DESCRIPTION = ("Карта и 3D-глобус спутников в реальном времени: российская группировка «Рассвет», "
-                   "ГЛОНАСС, Starlink и другие системы. Элементы орбит обновляются ежедневно.")
+                   "ГЛОНАСС, Starlink и другие системы. Элементы орбит обновляются по расписанию.")
 
 
 class Stop(Exception):
@@ -921,14 +922,32 @@ def update_constellation(m, pool, now, entries):
         upsert_sources(m.setdefault("sources", []), entries, used)
         ds = m.setdefault("dataset", {})
         ds["generatedAt"] = iso(now)
-        sats = m.get("satellites", [])
-        cur = policy.get("currentMaxAgeDays", 7)
-        ds["elementsCoverage"] = {
-            "total": len(sats),
-            "withElements": sum(1 for s in sats if s.get("elements")),
-            "current": sum(1 for s in sats if s.get("elements") and
-                           (now - (parse_iso(s["elements"].get("epoch")) or now - dt.timedelta(days=999))).days <= cur)}
+    refresh_constellation_health(m, now, env_int("MAX_EPOCH_AGE_DAYS", 30))
     return n
+
+
+def refresh_constellation_health(model, now, max_days):
+    dataset = model.setdefault("dataset", {})
+    policy = dataset.setdefault("freshnessPolicy", {})
+    current_days = policy.get("currentMaxAgeDays", 7)
+    policy["staleMaxAgeDays"] = max_days
+    satellites = model.get("satellites", [])
+    active = [s for s in satellites if (s.get("status") or {}).get("value") != "decayed"]
+    counts = dict(total=len(satellites), active=len(active), withElements=0, current=0, stale=0, expired=0, missing=0)
+    for satellite in satellites:
+        element = satellite.get("elements") or {}
+        epoch = parse_iso(element.get("epoch"))
+        age = (now - epoch).total_seconds() / 86400 if epoch else float("inf")
+        state = "missing" if not epoch or age < -2 else "expired" if age > max_days else "stale" if age > current_days else "current"
+        if element:
+            element["freshness"] = state
+        if (satellite.get("status") or {}).get("value") != "decayed":
+            counts["withElements"] += bool(element)
+            counts[state] += 1
+    dataset["elementsCoverage"] = counts
+    dataset["warning"] = (f"Активных аппаратов: {counts['active']}; элементы не старше {current_days} суток: {counts['current']}. "
+                          f"Старше {max_days} суток: {counts['expired']}; без пригодной эпохи: {counts['missing']}. "
+                          "Исторические элементы сохранены; устаревшие позиции и прогнозы ограничены по возрасту эпохи.")
 
 
 def update_catalog(b, pool, now, entries):
@@ -1038,7 +1057,7 @@ def build(template, results, now, domain, stamp=True, state_dir=None, news=None,
                 n = update_catalog(obj, pool, now, entries)
             else:
                 continue
-            if n:
+            if n or "satellites" in obj:
                 page = put_block(page, bid, json_text(obj))
                 changed += 1
             log.info("  %s (JSON): обновлены элементы у %d аппаратов", bid, n)
@@ -1053,6 +1072,7 @@ def build(template, results, now, domain, stamp=True, state_dir=None, news=None,
     if stamp and "data-meta" in blocks:
         meta = json.loads(get_block(page, "data-meta") or "{}")
         meta["generatedAt"] = iso(now)
+        meta["orbitPolicy"] = {"maxEpochAgeDays": env_int("MAX_EPOCH_AGE_DAYS", 30), "predictionMaxAgeDays": 7}
         extra = [satcat_entry(g, v) for g, v in sorted((satcat or {}).items())]
         upsert_sources(meta.setdefault("sources", []), entries + extra, {e["id"] for e in entries + extra})
         page = put_block(page, "data-meta", json_text(meta))
@@ -1088,7 +1108,7 @@ EXTERNAL_BLOCKS = ("data-starlink", "geo-detail")   # крупные блоки 
 
 def externalize(page, out_dir):
     """Выносит крупные JSON-блоки в файлы <id>.<hash>.json (+ сжатая копия .gz); в блоке остаётся {"src": имя}.
-    Вызывается после check_built — проверка видит страницу целиком. Файлы старше двух суток удаляются."""
+    Вызывается после check_built — проверка видит страницу целиком. Уборка выполняется после публикации."""
     for bid in EXTERNAL_BLOCKS:
         body = get_block(page, bid)
         if not body or not body.strip() or json.loads(body).get("src"):
@@ -1104,12 +1124,27 @@ def externalize(page, out_dir):
         if isinstance(rows, list):
             stub["n"] = len(rows)   # число аппаратов: список систем показывает его, пока блок не скачан
         page = put_block(page, bid, json.dumps(stub))
-        for n in os.listdir(out_dir):
-            fp = os.path.join(out_dir, n)
-            if n.startswith(bid + ".") and not n.startswith(name) and time.time() - os.path.getmtime(fp) > 2 * 86400:
-                os.unlink(fp)
         log.info("  %s: вынесен в %s (%d КБ)", bid, name, len(raw) // 1024)
     return page
+
+
+def cleanup_external(out_dir, pages):
+    """Сохраняем данные новой и предыдущей страницы; удаляем только старые версии."""
+    keep = set()
+    for page in pages:
+        for bid in EXTERNAL_BLOCKS:
+            body = get_block(page, bid)
+            if body:
+                name = json.loads(body).get("src")
+                if name:
+                    keep.update((name, name + ".gz"))
+    for name in os.listdir(out_dir):
+        if not any(re.fullmatch(re.escape(bid) + r"\.[0-9a-f]{10}\.json(?:\.gz)?", name)
+                   for bid in EXTERNAL_BLOCKS):
+            continue
+        path = os.path.join(out_dir, name)
+        if name not in keep and time.time() - os.path.getmtime(path) > 2 * 86400:
+            os.unlink(path)
 
 
 def render_static(static_dir, name, domain, today):
@@ -1180,10 +1215,30 @@ def run_once(args, cfg):
         return 0
 
     os.makedirs(args.out, exist_ok=True)
+    previous_pages = []
+    cleanup_safe = True
+    for name in ("index.html", "index.html.gz"):
+        path = os.path.join(args.out, name)
+        if os.path.exists(path):
+            opener = gzip.open if name.endswith(".gz") else open
+            try:
+                with opener(path, "rt", encoding="utf-8") as f:
+                    previous_pages.append(f.read())
+            except (OSError, EOFError, UnicodeError) as e:
+                cleanup_safe = False
+                log.warning("Предыдущая страница повреждена; сохраняем старые данные: %s", e)
+    health = orbit_health_report(page, now, max_age)
     page = externalize(page, args.out)
     raw = page.encode("utf-8")
+    compressed = gzip.compress(raw, 9, mtime=0)
     atomic_write(os.path.join(args.out, "index.html"), raw)
-    atomic_write(os.path.join(args.out, "index.html.gz"), gzip.compress(raw, 9, mtime=0))
+    atomic_write(os.path.join(args.out, "index.html.gz"), compressed)
+    atomic_write(os.path.join(args.out, "data-health.json"), json_text(health))
+    try:
+        if cleanup_safe:
+            cleanup_external(args.out, [page, *previous_pages])
+    except Exception as e:
+        log.warning("Уборка старых данных пропущена: %s", e)
     if domain:
         today = now.date().isoformat()
         for name in ("robots.txt", "sitemap.xml"):
@@ -1230,22 +1285,27 @@ def locked_run(args, cfg):
             return 3
 
 
-def needs_catchup(args):
+def needs_catchup(args, interval_hours=6):
     idx = os.path.join(args.out, "index.html")
     if not os.path.exists(idx):
         return True
     mt = os.path.getmtime(idx)
-    if time.time() - mt > 24 * 3600:
+    if time.time() - mt > interval_hours * 3600:
         return True
     deps = [args.template, args.sources] + [os.path.join(args.static, n) for n in ("robots.txt", "sitemap.xml")]
     return any(os.path.exists(p) and os.path.getmtime(p) > mt for p in deps)
 
 
-def sleep_until_hour(hour):
-    now = dt.datetime.now(UTC)
-    nxt = now.replace(hour=hour, minute=0, second=0, microsecond=0)
-    if nxt <= now:
-        nxt += dt.timedelta(days=1)
+def next_update(now, hour, interval_hours):
+    if not 0 <= hour <= 23 or interval_hours not in (2, 3, 4, 6, 8, 12, 24):
+        raise ValueError("час 0–23; интервал 2, 3, 4, 6, 8, 12 или 24 часа")
+    anchor = now.replace(hour=hour, minute=0, second=0, microsecond=0)
+    step = dt.timedelta(hours=interval_hours)
+    return anchor + (int((now - anchor) // step) + 1) * step
+
+
+def sleep_until_hour(hour, interval_hours=6):
+    nxt = next_update(dt.datetime.now(UTC), hour, interval_hours)
     log.info("Следующее обновление: %s", iso(nxt))
     while True:            # короткие шаги, чтобы переживать смену системного времени и быстро останавливаться
         left = (nxt - dt.datetime.now(UTC)).total_seconds()
@@ -1259,7 +1319,7 @@ def main():
     ap = argparse.ArgumentParser(description="Обновление данных трекера «Рассвет»")
     mode = ap.add_mutually_exclusive_group(required=True)
     mode.add_argument("--once", action="store_true", help="одно обновление и выход")
-    mode.add_argument("--loop", action="store_true", help="постоянная работа: раз в сутки в UPDATE_HOUR_UTC")
+    mode.add_argument("--loop", action="store_true", help="постоянная работа по schedule.interval_hours с опорой UPDATE_HOUR_UTC")
     mode.add_argument("--dry-run", action="store_true", help="всё, кроме публикации")
     ap.add_argument("--template", default="/app/template/rassvet-tracker.html")
     ap.add_argument("--static", default="/app/static")
@@ -1282,11 +1342,13 @@ def main():
         hour = env_int("UPDATE_HOUR_UTC", 3)
         if not 0 <= hour <= 23:
             raise SystemExit("UPDATE_HOUR_UTC должен быть 0–23")
-        if needs_catchup(args):
-            log.info("Опубликованная версия отсутствует, старше суток или старше шаблона — обновляю сразу")
+        interval = int((cfg.get("schedule") or {}).get("interval_hours", 6))
+        next_update(dt.datetime.now(UTC), hour, interval)
+        if needs_catchup(args, interval):
+            log.info("Опубликованная версия отсутствует, старше интервала или шаблона — обновляю сразу")
             locked_run(args, cfg)
         while True:
-            sleep_until_hour(hour)
+            sleep_until_hour(hour, interval)
             locked_run(args, cfg)
     except (Stop, KeyboardInterrupt):
         log.info("Остановка")
