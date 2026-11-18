@@ -2,12 +2,35 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta name="application-version" content="1.14.1">
+<meta name="application-version" content="1.15.0">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Рассвет — трекер спутников</title>
+<link rel="preload" as="script" crossorigin="anonymous" href="vendor/deck.gl@9.4.0/dist.min.js">
+<link rel="preload" as="script" crossorigin="anonymous" href="vendor/satellite.js@6.0.2/satellite.min.js">
+<link rel="preload" as="script" crossorigin="anonymous" href="vendor/topojson-client@3.1.0/topojson-client.min.js">
 <link rel="stylesheet" href="vendor/fonts-5.3.0/fonts.css" media="print" onload="this.media='all'">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#080f20">
+<script>
+(() => {
+  const root=document.documentElement;
+  function setTheme(light){
+    root.dataset.theme=light?'light':'dark';
+    document.querySelector('meta[name="theme-color"]').content=light?'#eef3fa':'#080f20';
+    document.querySelectorAll('[data-theme-toggle]').forEach(b=>b.setAttribute('aria-pressed',String(light)));
+  }
+  let light=false;
+  try{ light=localStorage.getItem('rassvet.theme')==='light'; }catch(e){}
+  setTheme(light);
+  document.addEventListener('DOMContentLoaded',()=>setTheme(root.dataset.theme==='light'));
+  document.addEventListener('click',e=>{
+    if(!e.target.closest('[data-theme-toggle]')) return;
+    const light=root.dataset.theme!=='light';
+    setTheme(light);
+    try{ localStorage.setItem('rassvet.theme',root.dataset.theme); }catch(e){}
+  });
+})();
+</script>
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <style>
 :root{
@@ -19,19 +42,37 @@
   --accent:#ff9d5c; --accent-ink:#24120a; --accent-2:#ff7a85; --sky:#8cb8ff;   /* рассвет — «Рассвет» и главное действие; sky — выбор и переключатели */ --warn:#f2c14e; --bad:#ff7a6b; --ok:#69d39b;
   --unconf:#f2c14e; --conflict:#ff8a7a;
   --shadow:0 8px 24px rgba(3,6,18,.35);
+  --selected:var(--sky); --selected-bg:rgba(140,184,255,.13);
+  --gap-xs:4px; --gap-sm:8px; --gap-md:12px; --gap-lg:16px; --gap-xl:24px;
+  --radius-control:8px; --radius-group:12px; --radius-panel:14px;
+  --type-meta:.75rem; --type-body:.875rem; --type-heading:1rem; --type-title:1.25rem; --touch-target:44px;
+  --map-label:#eef1f8; --map-accent:#ff9d5c;
   --font:'Golos Text',system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;
   --mono:var(--font);   /* цифры — тем же Golos с ровными цифрами (font-variant-numeric на body), без моноширинного */
   color-scheme:dark;
   box-sizing:border-box;
   padding-top:env(safe-area-inset-top,0px);
   padding-bottom:env(safe-area-inset-bottom,0px);
+  padding-left:env(safe-area-inset-left,0px);
+  padding-right:env(safe-area-inset-right,0px);
 }
+
+:root[data-theme="light"]{
+  color-scheme:light;
+  --space:#eef3fa; --bg-panel:#fff; --bg-raise:#e2ebf7; --line:#9aacc2;
+  --text:#17263e; --muted:#475973; --faint:#53657b;
+  --accent:#994400; --accent-ink:#fff; --sky:#22599c; --selected-bg:#e2ebf7;
+  --ok:#17623d; --warn:#774c00; --bad:#a13532; --unconf:var(--warn); --conflict:var(--bad);
+  --shadow:0 6px 20px rgba(23,38,62,.18);
+}
+:root[data-theme="light"] #app{background-color:#080f20}
+:root[data-theme="light"] .loading .box{background:var(--bg-panel);padding:var(--gap-lg);border-radius:var(--radius-panel)}
 
 *,*::before,*::after{box-sizing:inherit}
 
 html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px);background:var(--space)}
 
-body{height:100%;margin:0;font-variant-numeric:tabular-nums;overscroll-behavior:none;touch-action:manipulation;background:var(--space);color:var(--text);font-family:var(--font);font-size:14px;line-height:1.45;overflow:hidden;-webkit-font-smoothing:antialiased}
+body{height:100%;margin:0;font-variant-numeric:tabular-nums;overscroll-behavior:none;touch-action:manipulation;background:var(--space);color:var(--text);font-family:var(--font);font-size:var(--type-body);line-height:1.45;overflow:hidden;-webkit-font-smoothing:antialiased}
 
 button,input,select,textarea{font:inherit;color:inherit}
 
@@ -43,10 +84,10 @@ a{color:var(--accent)}
 
 #map{position:absolute;inset:0;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}   /* iOS: долгое нажатие не выделяет и не открывает меню, жест не уходит странице */
 
-.glass{background:var(--bg-panel);backdrop-filter:blur(14px) saturate(1.2);-webkit-backdrop-filter:blur(14px) saturate(1.2);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}
+.glass{background:var(--bg-panel);backdrop-filter:blur(14px) saturate(1.2);-webkit-backdrop-filter:blur(14px) saturate(1.2);border:1px solid var(--line);border-radius:var(--radius-panel);box-shadow:var(--shadow)}
 
 /* top bar */
-.top{position:absolute;top:12px;left:12px;right:12px;display:flex;gap:8px;align-items:flex-start;pointer-events:none;z-index:5}
+.top{position:absolute;top:var(--gap-md);left:var(--gap-md);right:var(--gap-md);display:flex;gap:var(--gap-sm);align-items:flex-start;pointer-events:none;z-index:5}
 
 .top>*{pointer-events:auto}
 
@@ -54,15 +95,15 @@ a{color:var(--accent)}
 
 .brand svg{flex:none}
 
-.brand b{font-weight:700;font-size:16px;letter-spacing:.01em}
+.brand b{font-weight:700;font-size:var(--type-heading);letter-spacing:.01em}
 
-.brand span{color:var(--muted);font-size:12px;display:block;line-height:1.2}
+.brand span{color:var(--muted);font-size:var(--type-meta);display:block;line-height:1.2}
 
-.seg{display:inline-flex;padding:3px;gap:2px;border-radius:11px}
+.seg{display:inline-flex;padding:3px;gap:2px;border-radius:var(--radius-group)}
 
-.seg button{border:0;background:transparent;padding:6px 12px;border-radius:8px;cursor:pointer;color:var(--muted);font-weight:500}
+.seg button{border:0;background:transparent;padding:6px var(--gap-md);border-radius:var(--radius-control);cursor:pointer;color:var(--muted);font-weight:500}
 
-.seg button[aria-pressed="true"]{background:var(--bg-raise);color:var(--text);box-shadow:inset 0 0 0 1px var(--line)}
+.seg button[aria-pressed="true"]{background:var(--selected-bg);color:var(--selected);box-shadow:inset 0 0 0 1px var(--selected)}
 
 .spacer{flex:1}
 
@@ -91,7 +132,7 @@ a{color:var(--accent)}
 
 .side h3{font-size:14.5px;font-weight:600;color:var(--text);margin:14px 16px 6px}
 
-.row{display:flex;align-items:center;gap:10px;padding:6px 16px;min-height:34px}
+.row{display:flex;align-items:center;gap:10px;padding:6px var(--gap-lg);min-height:34px}
 
 .row label{flex:1;cursor:pointer}
 
@@ -209,7 +250,7 @@ ul.imgs{margin:8px 0 0;padding-left:18px;font-size:12.5px}
 
 .tbtn{border:1px solid var(--line);background:var(--bg-raise);border-radius:9px;height:34px;min-width:34px;padding:0 11px;cursor:pointer;font-weight:500;display:inline-flex;align-items:center;gap:6px}
 
-.tbtn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
+.tbtn[aria-pressed="true"]{border-color:var(--selected);color:var(--selected)}
 
 .tctl{display:flex;gap:6px;align-items:center}
 
@@ -298,7 +339,7 @@ dialog .acts{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 
 dialog .acts .grow{flex:1}
 
-.btn-primary{background:var(--accent);color:#1b1206;border:0;border-radius:9px;padding:8px 14px;font-weight:600;cursor:pointer}
+.btn-primary{background:var(--accent);color:var(--accent-ink);border:0;border-radius:9px;padding:8px 14px;font-weight:600;cursor:pointer}
 
 .result{font-size:12.5px;white-space:pre-wrap;color:var(--muted)}
 
@@ -306,7 +347,7 @@ dialog .acts .grow{flex:1}
 .result .bad{color:var(--bad)}
 .result .warn{color:var(--warn)}
 
-.loading{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);z-index:10;padding:24px;text-align:center}
+.loading{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);z-index:10;padding:var(--gap-xl);text-align:center}
 
 .loading .box{max-width:520px;line-height:1.5}
 
@@ -404,9 +445,9 @@ dialog .acts .grow{flex:1}
 .side{overflow-x:hidden;padding-top:0}
 .tabs{position:sticky;top:0;z-index:3;display:flex;gap:2px;margin:0;padding:8px 8px 6px;background:var(--bg-panel);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
 .tabs button{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:6px;border:0;background:transparent;color:var(--muted);font:inherit;font-weight:600;font-size:13px;padding:8px 6px;border-radius:9px;cursor:pointer;min-height:36px}
-.tabs button[aria-selected="true"]{background:var(--bg-raise);color:var(--text);box-shadow:inset 0 0 0 1px var(--line)}
+.tabs button[aria-selected="true"]{background:var(--selected-bg);color:var(--selected);box-shadow:inset 0 0 0 1px var(--selected)}
 .tabs button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
-.tbadge{min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:var(--accent);color:#1b1206;font-size:11px;line-height:16px;font-weight:700}
+.tbadge{min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:var(--accent);color:var(--accent-ink);font-size:11px;line-height:16px;font-weight:700}
 .tabp[hidden]{display:none}
 /* навигация по стране и типу: одна строка, листается вбок */
 .sysnav{padding:2px 0 2px}
@@ -433,7 +474,7 @@ dialog .acts .grow{flex:1}
 
 .chip i{width:8px;height:8px;border-radius:50%}
 
-.chip[aria-pressed="true"]{color:var(--text);border-color:var(--muted);background:var(--bg-raise)}
+.chip[aria-pressed="true"]{color:var(--selected);border-color:var(--selected);background:var(--selected-bg)}
 
 .chip .num{font-size:11px;color:var(--faint)}
 .filters .fhead{display:flex;align-items:center;gap:8px;margin:12px 16px 2px}
@@ -446,31 +487,34 @@ dialog .acts .grow{flex:1}
 .filters select,.filters input[type=number]{background:var(--bg-raise);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:5px 8px;font:inherit;font-size:12.5px}
 .filters select{display:block;margin:4px 16px 2px;width:calc(100% - 32px);color-scheme:dark}
 /* выпадающий список рисует система: без своих цветов пункты выходили светло-серыми на белом */
-.filters select option{background:#141d33;color:var(--text)}
+.filters select option{background:var(--space);color:var(--text)}
 .filters .yrs{display:flex;align-items:center;gap:12px;padding:4px 16px 8px;font-size:12.5px;color:var(--muted)}
 .filters .yrs input{width:5.4em;margin-left:4px}
 .tag.fresh{color:var(--ok)}
 .tag.aging{color:var(--accent)}
-.m3d{position:fixed;inset:0;z-index:80;display:grid;place-items:center;background:rgba(4,8,20,.55)}
+.m3d{position:fixed;inset:0;width:100%;height:100%;max-width:none;max-height:none;margin:0;border:0;border-radius:0;box-shadow:none;background:transparent;backdrop-filter:none;-webkit-backdrop-filter:none}
+.m3d[open]{display:grid;place-items:center}
+.m3d::backdrop{background:rgba(4,8,20,.55)}
+html.redmode .m3d[open]::after{content:'';position:fixed;inset:0;background:rgb(200,14,0);mix-blend-mode:multiply;pointer-events:none}
 .m3d-box{width:min(1280px,94vw);height:min(900px,90vh);display:flex;flex-direction:column;border-radius:16px;overflow:hidden}
 .m3d-box header{display:flex;align-items:center;gap:10px;padding:12px 14px 8px}
-.m3d-box h2{margin:0;font-size:15px;flex:1}
+.m3d-box h2{margin:0;font-size:var(--type-title);flex:1}
 .m3d-view{flex:1;position:relative;min-height:0;background:radial-gradient(ellipse at 50% 40%,rgba(80,110,180,.18),transparent 70%)}
 .m3d-box footer{padding:8px 14px 12px;font-size:12.5px;color:var(--muted)}
 .m3d-box footer .tag{margin:0 6px 0 0}
 .m3d-ex{font-size:12.5px;padding:6px 12px;min-height:32px}
 .m3d-ex[hidden]{display:none}
-.m3d-ex[aria-pressed="true"]{color:var(--accent);border-color:var(--accent)}
+.m3d-ex[aria-pressed="true"]{color:var(--selected);border-color:var(--selected)}
 .m3d-view.loading::after{content:"…";position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);font-size:22px}
 .m3d-parts{display:flex;gap:5px;overflow-x:auto;padding:6px 14px 2px;scrollbar-width:thin}
 .m3d-parts .chip{flex:none;white-space:nowrap;padding:5px 10px;font-size:12px;min-height:30px}
 .m3d-parts.grouped{display:block;overflow:visible;padding-top:8px}
 .m3d-parts .pg{display:flex;gap:4px;overflow-x:auto;scrollbar-width:thin;padding-bottom:4px}
 .m3d-parts .pgb{flex:none;border:0;background:transparent;color:var(--muted);font:inherit;font-size:12.5px;font-weight:600;padding:6px 10px;border-radius:8px;cursor:pointer;white-space:nowrap;min-height:32px}
-.m3d-parts .pgb[aria-pressed="true"]{background:var(--bg-raise);color:var(--text);box-shadow:inset 0 0 0 1px var(--line)}
+.m3d-parts .pgb[aria-pressed="true"]{background:var(--selected-bg);color:var(--selected);box-shadow:inset 0 0 0 1px var(--selected)}
 .m3d-parts .pgb .num{color:var(--faint);font-weight:400}
 .m3d-parts .pl{display:flex;flex-wrap:wrap;gap:5px;max-height:78px;overflow:auto;padding-top:4px}
-.m3d-info{position:absolute;left:10px;right:10px;bottom:10px;max-height:58%;overflow:auto;padding:10px 34px 10px 12px;border-radius:12px;background:rgba(10,16,32,.92);border:1px solid var(--line);font-size:12.5px;line-height:1.45;z-index:3}
+.m3d-info{position:absolute;left:10px;right:10px;bottom:10px;max-height:58%;overflow:auto;padding:10px 34px 10px 12px;border-radius:var(--radius-group);background:var(--bg-panel);border:1px solid var(--line);font-size:12.5px;line-height:1.45;z-index:3}
 .m3d-info h3{margin:0 0 4px;font-size:14px;color:var(--text)}
 .m3d-info p{margin:0 0 6px;color:var(--muted)}
 .m3d-info p.note{color:var(--faint);font-size:11.5px}
@@ -547,7 +591,7 @@ dialog .acts .grow{flex:1}
 .elevtop label{flex:1}
 .marks{position:relative;height:18px;margin:0 8px}
 .marks button{position:absolute;transform:translateX(-50%);border:0;background:none;color:var(--muted);font:11px var(--mono);cursor:pointer;padding:1px 3px;border-radius:5px}
-.marks button[aria-pressed="true"]{color:var(--accent)}
+.marks button[aria-pressed="true"]{color:var(--selected)}
 #nightMarks button:first-child{transform:none;left:-8px!important}
 #nightMarks button:last-child{transform:none;left:auto!important;right:-8px}
 .elevhint{margin:2px 0 0;font-size:12px;color:var(--muted);line-height:1.35}
@@ -590,8 +634,7 @@ dialog .acts .grow{flex:1}
 .cact.main{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
 .cact.main:hover{border-color:var(--accent);filter:brightness(1.06)}
 .cact:hover{border-color:var(--muted)}
-.cact[aria-pressed="true"]{border-color:var(--sky);color:var(--sky);background:color-mix(in srgb,var(--sky) 13%,transparent)}
-.cact.main[aria-pressed="true"]{background:color-mix(in srgb,var(--accent) 18%,transparent);color:var(--accent);border-color:var(--accent)}
+.cact[aria-pressed="true"],.cact.main[aria-pressed="true"]{border-color:var(--selected);color:var(--selected);background:var(--selected-bg)}
 .cact.fav[aria-pressed="true"] svg path{fill:currentColor}
 .fnote{font-size:12px;color:var(--muted)}
 .padtag{position:absolute;z-index:6;left:0;top:0;display:flex;flex-direction:column;gap:2px;padding:8px 30px 8px 12px;max-width:260px;pointer-events:auto;transform:translate(16px,-50%);border-color:color-mix(in srgb,var(--accent) 60%,var(--line))}
@@ -607,7 +650,7 @@ dialog .acts .grow{flex:1}
 .lch.hot{box-shadow:inset 3px 0 0 var(--accent)}
 .lch .lwhen{color:var(--text)!important;-webkit-line-clamp:2!important}
 .nmeta .lst{font-weight:700;padding:1px 7px;border-radius:999px;background:var(--bg-raise);color:var(--text);font-size:10.5px}
-.nmeta .lst.go{background:#2f9e62;color:#fff}.nmeta .lst.tbd{background:#6b7590;color:#fff}.nmeta .lst.bad{background:#c4504a;color:#fff}
+.nmeta .lst.go{background:var(--ok);color:var(--space)}.nmeta .lst.tbd{background:var(--muted);color:var(--space)}.nmeta .lst.bad{background:var(--bad);color:var(--space)}
 .navbtns .iconbtn.nb{width:auto;min-width:38px;padding:0 12px 0 10px;gap:7px;justify-content:flex-start}
 .nb .nbl{font-size:12.5px;font-weight:600;white-space:nowrap}
 .nb .nbi{font-size:12px;font-weight:700;min-width:16px;text-align:center}
@@ -674,7 +717,7 @@ dialog .acts .grow{flex:1}
 .sres li.none{color:var(--muted);cursor:default}
 .sres li.note{display:block;color:var(--muted);cursor:default;font-size:12.5px;line-height:1.45;border-bottom:1px solid var(--line);border-radius:0;margin-bottom:2px}
 .sres li.note a{color:var(--accent)}
-.iconbtn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
+.iconbtn[aria-pressed="true"],#btnLayers[aria-expanded="true"]{border-color:var(--selected);color:var(--selected)}
 .tools{display:flex;gap:8px;position:relative}
 #btnNews .lbl-menu{display:inline;margin-left:6px}
 /* меню «Ещё» на ПК: язык, ссылка на вид, справка */
@@ -778,7 +821,7 @@ html.redmode body::after{content:'';position:fixed;inset:0;background:rgb(200,14
 .skylist li.pass>button:first-child{flex:1;min-width:0}
 .skylist .pa{width:28px;height:28px;flex:none;padding:0;display:inline-grid;place-items:center;border:0;background:none;color:var(--muted);border-radius:7px;cursor:pointer}
 .skylist .pa:hover{background:var(--bg-raise);color:var(--text)}
-.skylist .pa[aria-pressed="true"]{color:var(--accent)}
+.skylist .pa[aria-pressed="true"]{color:var(--selected)}
 .skyall{border:0;background:none;color:var(--accent);cursor:pointer;font-size:12.5px;padding:2px 4px;text-decoration:underline}
 #app.picking #map{cursor:crosshair}
 
@@ -803,7 +846,7 @@ html.redmode body::after{content:'';position:fixed;inset:0;background:rgb(200,14
 .tl-list{display:flex;flex-direction:column;gap:2px}
 .tl-item{display:flex;align-items:center;gap:9px;border:1px solid transparent;background:transparent;border-radius:9px;padding:5px 6px;cursor:pointer;text-align:left}
 .tl-item:hover{background:var(--bg-raise)}
-.tl-item[aria-pressed="true"]{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,transparent)}
+.tl-item[aria-pressed="true"]{border-color:var(--selected);background:var(--selected-bg)}
 .tl-item i{width:10px;height:10px;border-radius:50%;flex:none}
 .tl-item span{flex:1;display:flex;flex-direction:column;font-size:12.5px}
 .tl-item small{color:var(--faint);font-size:11px}
@@ -815,14 +858,23 @@ html.redmode body::after{content:'';position:fixed;inset:0;background:rgb(200,14
 /* ===== адаптивность новых элементов ===== */
 @media (max-width:1180px){ .brand span{display:none} }
 @media (max-width:980px){ .search{flex-basis:200px} #btnSky .lbl{display:none} }
-@media (max-width:720px){
-  .search{display:none;position:absolute;top:46px;left:0;right:0;flex:none;height:42px;z-index:21}
-  .search.open{display:flex}
-  .tools{display:none;position:absolute;top:46px;right:0;flex-direction:column;align-items:stretch;padding:6px;gap:6px;background:var(--bg-panel);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);z-index:21}
+@media (max-width:1100px){
+  #btnLayers{display:inline-flex}
+  .side.closed-m,#app:not(.embed) .side:not(.closed-m) ~ .card{display:none}
+  .tools{display:none;position:absolute;top:calc(100% + var(--gap-xs));right:0;max-height:calc(100dvh - 80px);overflow:auto;flex-direction:column;align-items:stretch;padding:6px;gap:6px;background:var(--bg-panel);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--line);border-radius:var(--radius-group);box-shadow:var(--shadow);z-index:21}
   .tools.open{display:flex}
   .more-items,.tools.open .more-items{display:contents}   /* на телефоне всё меню — один столбец */
   .tools .iconbtn{justify-content:flex-start;box-shadow:none;min-width:150px}
   .tools .lbl-long,.tools .lbl-menu{display:inline}
+}
+@media (min-width:721px) and (max-width:1100px){
+  .side,.card{width:clamp(300px,40%,380px);max-width:none}
+  .card:not([hidden]) ~ .navbtns{left:var(--gap-md);right:auto;align-items:flex-start}
+  .side:not(.closed-m) ~ .navbtns{right:var(--gap-md);left:auto;align-items:flex-end}
+}
+@media (max-width:720px){
+  .search{display:none;position:absolute;top:calc(100% + var(--gap-xs));left:0;right:0;flex:none;height:42px;z-index:21}
+  .search.open{display:flex}
   .card{transition:max-height .22s ease}
   .card.peek{max-height:var(--peekH,120px);overflow:hidden}
   .c-handle{display:flex;position:absolute;top:0;left:0;right:0;height:14px;justify-content:center;align-items:center;border:0;background:none;padding:0;cursor:pointer;touch-action:none}
@@ -873,6 +925,29 @@ html.redmode body::after{content:'';position:fixed;inset:0;background:rgb(200,14
 .newslist p{margin:3px 0 2px;font-size:12.5px;color:var(--muted);line-height:1.4}
 .newslist .go{font-size:11px;color:var(--faint)}
 .newslist a:hover .go{color:var(--accent)}
+#liteCatalog{box-sizing:border-box;height:100%;max-width:52rem;margin:auto;overflow:auto;padding:clamp(16px,4vw,40px);padding-bottom:max(24px,env(safe-area-inset-bottom));background:var(--space);color:var(--text)}
+#liteCatalog label{display:block;margin:16px 0 4px;font-weight:600}
+#liteCatalog :is(input,select,button){box-sizing:border-box;max-width:100%;min-height:44px;padding:8px 12px;color:var(--text);background:var(--bg-panel);border:1px solid var(--line);border-radius:8px}
+#liteCatalog :is(input,select){width:100%}
+#liteCatalog :focus-visible{outline:2px solid var(--sky);outline-offset:2px}
+#liteCatalog li{padding:8px 0;overflow-wrap:anywhere}
+#liteCatalog [data-theme-toggle]{float:right}
+@media (pointer:coarse){
+  .top .iconbtn,.navbtns .iconbtn.nb,.azoom button,.m3d-fs,.close,.hbtn{min-width:var(--touch-target);min-height:var(--touch-target)}
+  .top .seg{padding:0}
+  .top .seg button,.tbtn,.tabs button,.cact{min-height:var(--touch-target)}
+  .top .seg button{min-width:var(--touch-target)}
+  .padtag .close,.m3d-info .close{min-width:32px;min-height:32px}
+  .tb-handle,.c-handle{height:var(--touch-target)}
+}
+@media (pointer:coarse) and (max-width:720px){
+  #card header{padding-top:var(--touch-target)}
+}
+@media (max-width:375px){
+  .top .brand,.top .spacer{display:none}
+  #btnMore{margin-left:auto}
+  .top{gap:var(--gap-xs)}
+}
 </style>
 </head>
 <body>
@@ -901,14 +976,15 @@ html.redmode body::after{content:'';position:fixed;inset:0;background:rgb(200,14
     <button class="iconbtn only-mobile" id="btnSearch" aria-label="Поиск спутника" data-i18n-aria="aria.search">
       <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
     </button>
-    <button class="iconbtn only-mobile" id="btnLayers" aria-expanded="false" data-i18n-tip="tip.layers" data-i18n="btn.layers">Слои</button>
-    <button class="iconbtn" id="btnSky" aria-pressed="false" data-i18n-tip="tip.sky">
+    <button class="iconbtn only-mobile" id="btnLayers" aria-controls="side" aria-expanded="false" data-i18n-tip="tip.layers" data-i18n="btn.layers">Слои</button>
+    <button class="iconbtn" id="btnSky" aria-pressed="false" aria-label="Надо мной" data-i18n-aria="btn.sky" data-i18n-tip="tip.sky">
       <svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 15s5-4.6 5-8.6A5 5 0 0 0 3 6.4C3 10.4 8 15 8 15z" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="8" cy="6.4" r="1.8" fill="currentColor"/></svg><span class="lbl" data-i18n="btn.sky">Надо мной</span>
     </button>
     <div class="tools" id="tools">
       <button class="iconbtn" id="btnTable" aria-expanded="false" data-i18n-tip="tip.table" data-i18n="btn.table">Таблица</button>
       <button class="iconbtn" id="btnNews" aria-pressed="false" data-i18n-tip="tip.news" data-i18n-aria="aria.news"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="3" width="13" height="10" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M4 6h5M4 8.5h5M4 11h3.5M11 6h1.5v3H11z" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg><span class="lbl-menu" data-i18n="btn.news">Новости</span></button>
       <div class="more-items">
+      <button class="iconbtn" type="button" data-theme-toggle aria-pressed="false"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" aria-hidden="true"><circle cx="8" cy="8" r="3"/><path d="M8 1v2m0 10v2M1 8h2m10 0h2M3 3l1.5 1.5m7 7L13 13M3 13l1.5-1.5m7-7L13 3"/></svg><span class="lbl-menu" data-i18n="theme.light">Светлая тема</span></button>
       <button class="iconbtn" id="btnLang" aria-label="English version" data-i18n-aria="aria.lang" data-i18n-tip="tip.lang" data-i18n="btn.lang">EN</button>
       <button class="iconbtn" id="btnShareView" data-i18n-tip="tip.shareView" data-i18n-aria="btn.shareView"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M6.6 9.4l2.8-2.8M7.3 4.1l1.1-1.1a3 3 0 0 1 4.2 4.2l-1.1 1.1M8.7 11.9l-1.1 1.1a3 3 0 0 1-4.2-4.2l1.1-1.1" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><span class="lbl-menu" data-i18n="btn.shareView">Ссылка на этот вид</span></button>
       <button class="iconbtn" id="btnHelp" data-i18n-tip="tip.help" data-i18n-aria="tip.help"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.4a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.2-2.4 3.7"/><circle cx="12" cy="17.2" r=".6" fill="currentColor"/></svg><span class="lbl-menu" data-i18n="btn.help">Как пользоваться</span></button>
@@ -1116,8 +1192,10 @@ const enPl = (n,one,many) => n===1?one:many;
 const nf = (v,d) => Number(v).toLocaleString(LOC(),{minimumFractionDigits:d||0,maximumFractionDigits:d||0});
 const I18N = {
 ru:{
+  'theme.light':'Светлая тема',
   'doc.title':'Рассвет — трекер спутников', 'loading.map':'Загрузка карты…',
   'libs.fail':'Не удалось загрузить библиотеки карты. Обновите страницу; если не поможет — попробуйте другое подключение.',
+  'catalog.failed':'Не удалось загрузить каталог.', 'catalog.retry':'Повторить загрузку', 'catalog.loading':'Ищу в дополнительных каталогах…',
   'webgl.title':'WebGL 2 недоступен в этом окне', 'webgl.body':'Карта рисуется видеокартой через WebGL 2, а здесь он выключен или не поддерживается. Откройте страницу в Chrome, Edge, Firefox или Safari и проверьте, что в настройках браузера включено аппаратное ускорение.',
   'init.err':'Ошибка инициализации: ', 'fatal.render':'Ошибка отрисовки карты', 'gl.lost.title':'Видеокарта сбросила карту', 'gl.lost.body':'Так бывает на телефонах при нехватке памяти. Перезагрузите страницу — выбранный спутник откроется снова.', 'nodata':'нет данных', 'yes':'да', 'no':'нет',
   'brand.name':'Рассвет', 'brand.sub':'трекер низкоорбитальной группировки', 'map.aria':'Карта спутников',
@@ -1319,8 +1397,10 @@ ru:{
   'sea':{arctic:'Северный Ледовитый океан', southern:'Южный океан', atlantic:'Атлантический океан', pacific:'Тихий океан', indian:'Индийский океан', med:'Средиземное море', black:'Чёрное море', caspian:'Каспийское море', baltic:'Балтийское море', red:'Красное море', gulf:'Персидский залив', mexico:'Мексиканский залив', carib:'Карибское море', okhotsk:'Охотское море', bering:'Берингово море', japan:'Японское море', hudson:'Гудзонов залив', north:'Северное море', scs:'Южно-Китайское море', barents:'Баренцево море', kara:'Карское море', laptev:'море Лаптевых', esib:'Восточно-Сибирское море', chukchi:'Чукотское море'}
 },
 en:{
+  'theme.light':'Light theme',
   'doc.title':'Rassvet — satellite tracker', 'loading.map':'Loading map…',
   'libs.fail':'Could not load the map libraries. Reload the page; if that does not help, try another connection.',
+  'catalog.failed':'Could not load the catalogue.', 'catalog.retry':'Retry download', 'catalog.loading':'Searching additional catalogues…',
   'webgl.title':'WebGL 2 is not available in this window', 'webgl.body':'The map is drawn by the GPU via WebGL 2, which is disabled or unsupported here. Open the page in Chrome, Edge, Firefox or Safari and make sure hardware acceleration is enabled.',
   'init.err':'Initialization error: ', 'fatal.render':'Map rendering error', 'gl.lost.title':'The graphics driver reset the map', 'gl.lost.body':'This can happen on phones when memory runs low. Reload the page — the selected satellite will open again.', 'nodata':'no data', 'yes':'yes', 'no':'no',
   'brand.name':'Rassvet', 'brand.sub':'LEO constellation tracker', 'map.aria':'Satellite map',
@@ -1552,8 +1632,6 @@ function hashHue(s){ let h=0; for(const ch of s) h=(h*31+ch.charCodeAt(0))>>>0; 
 const LAUNCH_PALETTE = { '2023-091':'#9aa8c2', '2024-092':'#5fb3f9', '2026-061':'#ffb45e', '2026-165':'#ff7a85' };
 
 /* ================= Alpha-5 и TLE ================= */
-const A5 = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
-function alpha5ToNum(s){ s=String(s).trim(); const c=s[0]; if(/[A-Za-z]/.test(c)){ const v=A5.indexOf(c.toUpperCase()); if(v<0) return NaN; return (v+10)*10000+parseInt(s.slice(1),10); } return parseInt(s,10); }
 function tleChecksum(line){ let s=0; for(let i=0;i<68;i++){ const c=line[i]; if(c>='0'&&c<='9') s+=+c; else if(c==='-') s+=1; } return s%10; }
 function parseTLEText(text){
   const lines = text.split(/\r?\n/).map(l=>l.replace(/\s+$/,'')).filter(l=>l.trim().length);
@@ -1574,7 +1652,6 @@ function parseTLEText(text){
   return {recs, errors};
 }
 function epochMsOf(satrec){ return (satrec.jdsatepoch + (satrec.jdsatepochF||0) - 2440587.5)*DAY; }
-function intlToCospar(s){ s=s.trim(); if(!/^\d{5}/.test(s)) return null; const yy=+s.slice(0,2); return `${yy<57?2000+yy:1900+yy}-${s.slice(2,5)}${s.slice(5)}`; }
 function makeSatrec(el){
   try{
     let sr=null;
@@ -1684,25 +1761,36 @@ function loadSystems(){
 /* вынесенные блоки (Starlink, ~3 МБ): грузятся после первого кадра; до этого система видна в списке с «…» */
 /* Большие блоки (Starlink ~2,7 МБ, OneWeb, …) скачиваются, только когда система включена, или для поиска и ссылки на
    спутник из них (all=true). Раньше качались при каждом входе, даже выключенные. */
-async function loadDeferredSystems(all){
+async function loadDeferredSystems(all=false, retry=false){
   for(const sys of systems){
-    if(!sys.pendingSrc || sys.loading || (!all && !sys.enabled)) continue;
-    sys.loading=true;
-    try{
-      const r=await fetch(sys.pendingSrc); if(!r.ok) throw new Error(r.status+' '+sys.pendingSrc);
-      const b=await r.json(); const n0=sats.length;
-      await whenIdle(()=>{ addCatalog(sys, b); sys.pendingSrc=null;
-        const P=new Float64Array(sats.length*3); P.set(pos); pos=P; const V=new Uint8Array(sats.length); V.set(valid); valid=V;
-        assignColors(); refreshCharset(); geoCache=null; });
-      filtersChanged(); updateBanner();
-      if(!$('#sheet').hidden) renderTable(true);
-      if(/^#\d{1,6}$/.test(location.hash) && S.selected<0) readHash();   // ссылка на спутник из этого блока
-      if(!$('#sres').hidden) runSearch();
-      renderGrowth();
-      console.info(`Догружено ${sats.length-n0} аппаратов: ${sys.cfg.id}`);
-    }catch(e){ console.warn('Блок не догружен', sys.cfg.id, e); sys.pendingSrc=null; sys.loadFailed=true; renderSystems(); }
-    finally{ sys.loading=false; }
+    if(!sys.pendingSrc || (!all && !sys.enabled) || (sys.loadFailed && !retry)) continue;
+    if(sys.loading){ await sys.loading; continue; }
+    sys.loadFailed=false;
+    sys.loading=loadDeferredCatalog(sys);
+    try{ await sys.loading; }finally{ sys.loading=null; }
   }
+}
+async function loadDeferredCatalog(sys){
+  let b;
+  try{
+    const r=await fetch(sys.pendingSrc); if(!r.ok) throw new Error(r.status+' '+sys.pendingSrc);
+    b=await r.json(); if(!Array.isArray(b.rows)) throw new Error('Missing catalogue rows');
+  }catch(e){
+    console.warn('Блок не догружен', sys.cfg.id, e); sys.loadFailed=true; renderSystems(); renderGrowth();
+    if(!$('#sres').hidden) runSearch();
+    return;
+  }
+  const n0=sats.length;
+  await whenIdle(()=>{ addCatalog(sys, b); sys.pendingSrc=null;
+    const P=new Float64Array(sats.length*3); P.set(pos); pos=P; const V=new Uint8Array(sats.length); V.set(valid); valid=V;
+    assignColors(); refreshCharset(); geoCache=null; });
+  filtersChanged(); updateBanner();
+  if(!$('#sheet').hidden) renderTable(true);
+  const hash=location.hash.slice(1), target=/^\d{1,6}$/.test(hash)?+hash:+new URLSearchParams(hash).get('s');
+  if(target && sys.sats.some(s=>s.norad===target)) readHash();
+  if(!$('#sres').hidden) runSearch();
+  renderGrowth();
+  console.info(`Догружено ${sats.length-n0} аппаратов: ${sys.cfg.id}`);
 }
 /* видимость: система включена и (если есть поколения) поколение отмечено */
 const satVisible = s => s.sys.enabled && (!s.sys.subtypes || !s.cat || s.sys.subtypeOn.has(s.cat.subtype)) && filterOk(s);
@@ -2113,7 +2201,7 @@ let deckgl=null, labelsDirty=true, lastLabelT=0, placed={country:[],region:[],ci
 let colors={};
 function readColors(){
   colors={ coast:cssRgb('--coast'), border:cssRgb('--border'), admin:cssRgb('--admin'), lc:cssRgb('--l-country'), lr:cssRgb('--l-region'),
-    lci:cssRgb('--l-city'), halo:cssRgb('--halo'), dot:cssRgb('--city-dot'), text:cssRgb('--text'), accent:cssRgb('--accent') };
+    lci:cssRgb('--l-city'), halo:cssRgb('--halo'), dot:cssRgb('--city-dot'), text:cssRgb('--map-label'), accent:cssRgb('--map-accent') };
 }
 
 function geoLayers(){
@@ -2617,8 +2705,8 @@ let M3D=null;
 const modelOf = s => (REG.models||[]).find(m=>m.norad===s.norad || (m.norads||[]).includes(s.norad)) || null;   // norads — одна модель на несколько одинаковых аппаратов (MMS)
 const partInfo = (M, id) => (M.kind==='schematic' ? (REG.schematicParts||[]) : (M.om.parts||M.om.markers||[])).find(x=>x.id===id) || null;
 function m3dShell(s, foot, canExplode){
-  const wrap=document.createElement('div'); wrap.className='m3d'; wrap.id='m3d';
-  wrap.innerHTML=`<div class="m3d-box glass" role="dialog" aria-modal="true" aria-labelledby="m3dTitle"><header><h2 id="m3dTitle">${esc(s.name)}</h2>
+  const wrap=document.createElement('dialog'); wrap.className='m3d'; wrap.id='m3d'; wrap.setAttribute('aria-labelledby','m3dTitle');
+  wrap.innerHTML=`<div class="m3d-box glass"><header><h2 id="m3dTitle">${esc(s.name)}</h2>
     ${canExplode?`<button type="button" class="btn m3d-ex" id="m3dEx" aria-pressed="false" data-tip="${esc(t('m3d.explodeTip'))}">${esc(t('m3d.explode'))}</button>`:''}
     <button type="button" class="m3d-fs" id="m3dFs" aria-pressed="false" aria-label="${esc(t('m3d.full'))}" data-tip="${esc(t('m3d.full'))}"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></button>
     <button class="close" id="m3dClose" aria-label="${esc(t('m3d.close'))}">×</button></header>
@@ -2626,6 +2714,10 @@ function m3dShell(s, foot, canExplode){
     <div class="m3d-parts" id="m3dParts" role="group" aria-label="${esc(t('m3d.parts'))}"></div>
     <footer>${foot}<br><small>${esc(t(canExplode?'m3d.hintParts':'m3d.hintPins'))}</small></footer></div>`;
   document.body.appendChild(wrap);
+  wrap.showModal();
+  $('#m3dClose').focus();
+  wrap.addEventListener('cancel',e=>{ e.preventDefault(); closeModel(); });
+  const tip=$('#tip'); if(tip) wrap.appendChild(tip);
   $('#m3dClose').onclick=closeModel; wrap.addEventListener('click',e=>{ if(e.target===wrap) closeModel(); });
   // во весь экран: выбор запоминается в браузере; deck.gl сам подстраивает холст под новый размер
   const fs=$('#m3dFs'), setFull=v=>{ wrap.classList.toggle('full',v); fs.setAttribute('aria-pressed',String(v)); };
@@ -2727,16 +2819,15 @@ function openModel(s, forceSchematic){
   startParts(s, G, 'schematic', null);
 }
 async function openPartsModel(s, om){
-  m3dShell(s, `<span class="tag official">${esc(t('m3d.official'))}</span>${esc(t('m3d.credit', om.credit, cfgT(om,'processing')))} <a href="${esc(om.source_url)}" target="_blank" rel="noopener">${esc(t('m3d.source'))}</a>`, true);
+  const wrap=m3dShell(s, `<span class="tag official">${esc(t('m3d.official'))}</span>${esc(t('m3d.credit', om.credit, cfgT(om,'processing')))} <a href="${esc(om.source_url)}" target="_blank" rel="noopener">${esc(t('m3d.source'))}</a>`, true);
   const view=$('#m3dView'); view.classList.add('loading');
-  try{ const parts=await loadPartsGlb(modelUrl(om)); if(!M3D_PENDING(s)) return; view.classList.remove('loading');
+  try{ const parts=await loadPartsGlb(modelUrl(om)); if(!wrap.open) return; view.classList.remove('loading');
     const G=withGeometry(parts.map(p=>({...p, color:p.color})), om.upAxis||'Y'); startParts(s, G, 'official', om); }
-  catch(e){ console.warn('[rassvet] модель не загрузилась, показываю схему', e); openModel(s, true); }
+  catch(e){ if(wrap.open){ console.warn('[rassvet] модель не загрузилась, показываю схему', e); openModel(s, true); } }
 }
 /* размер, в который вписывается модель: окно часто широкое, а большинство аппаратов шире, чем выше — берём ширину,
    но не больше 1,35 высоты, чтобы вытянутые вверх (Hubble) не обрезались */
 const fitSize = view => Math.max(120, Math.min(view.clientWidth, view.clientHeight*1.35));
-const M3D_PENDING = s => !!$('#m3d') && $('#m3dTitle').textContent===s.name;
 function startParts(s, G, kind, om){
   const view=$('#m3dView'), vmin=fitSize(view);
   const M={ kind, om, parts:G.parts, up:G.up, e:0, sel:null, touched:0, raf:0, wrap:$('#m3d') };
@@ -2745,7 +2836,6 @@ function startParts(s, G, kind, om){
   M.zoom0=vs.zoom; M.target0=G.center; M.fit=vmin;
   m3dDeck(M, view, vs, M.layers(), kind==='official' ? [new deck.LightingEffect({ amb:new deck.AmbientLight({intensity:0.75}), sun:new deck.DirectionalLight({direction:[-1,-2,-1.5], intensity:1.25}), fill:new deck.DirectionalLight({direction:[1,1,1], intensity:0.45}) })] : []);
   renderPartChips(M); $('#m3dEx').onclick=toggleExplode; $('#m3dEx').hidden = G.parts.length<2;   // одну часть разбирать нечего
-  $('#m3dClose').focus();
 }
 /* цельная модель (Hubble): ScenegraphLayer и метки на крупных частях — сами части в файле NASA не разделены */
 function openPinnedModel(s, om){
@@ -2756,13 +2846,13 @@ function openPinnedModel(s, om){
   M.zoom0=vs.zoom; M.fit=vmin;
   const layer=new deck.ScenegraphLayer({ id:'model', data:[0], scenegraph:modelUrl(om), getPosition:()=>[0,0,0], getColor:[255,255,255], sizeScale:1, _lighting:'pbr',
     coordinateSystem:deck.COORDINATE_SYSTEM.CARTESIAN, loadOptions:{worker:false},
-    onError:(e)=>{ console.warn('[rassvet] модель не загрузилась, показываю схему', e); setTimeout(()=>openModel(s, true), 0); return true; } });
+    onError:(e)=>{ console.warn('[rassvet] модель не загрузилась, показываю схему', e); setTimeout(()=>{ if(M.wrap.open) openModel(s, true); }, 0); return true; } });
   m3dDeck(M, view, vs, [layer], [new deck.LightingEffect({ amb:new deck.AmbientLight({intensity:1.1}), sun:new deck.DirectionalLight({direction:[-1,-2,-1.5], intensity:2.6}), fill:new deck.DirectionalLight({direction:[1,1,1], intensity:0.8}) })]);
   const host=$('#m3dPins');
   M.pins=om.markers.flatMap((m,i)=>(Array.isArray(m.pos[0])?m.pos:[m.pos]).map(pos=>{ const el=document.createElement('button'); el.type='button'; el.className='m3d-pin'; el.textContent=String(i+1);
     el.setAttribute('aria-label',cfgT(m,'name')); el.setAttribute('aria-pressed','false'); el.dataset.tip=cfgT(m,'name');
     el.onclick=e=>{ e.stopPropagation(); selectPart(M.sel===m.id?null:m.id); }; host.appendChild(el); return { id:m.id, pos, el }; }));
-  renderPartChips(M); $('#m3dClose').focus();
+  renderPartChips(M);
 }
 function placePins(M){
   const vp=M.d.getViewports && M.d.getViewports()[0]; if(!vp) return;
@@ -2770,7 +2860,14 @@ function placePins(M){
     p.el.style.display=ok?'':'none'; if(ok) p.el.style.transform=`translate(${q[0].toFixed(1)}px,${q[1].toFixed(1)}px)`; }
 }
 const MESH_CACHE={};
-function closeModel(){ if(M3D){ cancelAnimationFrame(M3D.raf); try{ M3D.d && M3D.d.finalize(); }catch(e){} } const w=$('#m3d'); if(w) w.remove(); M3D=null; }   // и окно, которое ещё грузит модель
+function closeModel(){
+  const wrap=$('#m3d'); if(!wrap) return;
+  const tip=wrap.querySelector('#tip'); if(tip) document.body.appendChild(tip);
+  wrap.close();
+  if(M3D){ cancelAnimationFrame(M3D.raf); try{ M3D.d && M3D.d.finalize(); }catch(e){} }
+  M3D=null; wrap.remove();
+  $('#card3d')?.focus({preventScroll:true});
+}
 /* ================= «Как это работает»: орбиты простыми словами ================= */
 function openHow(){
   let d=$('#howDlg');
@@ -2906,6 +3003,21 @@ function finishCard(card){
 }
 /* мобильная карточка: свёрнута до заголовка или развёрнута; ручка и смахивание */
 const mqMobile = window.matchMedia('(max-width:720px)');
+const mqSinglePanel = window.matchMedia('(max-width:1100px)');
+function showTable(open){
+  $('#sheet').hidden=!open;
+  $('#btnTable').setAttribute('aria-expanded',String(open));
+  if(open) renderTable(true);
+}
+function showLayers(open){
+  if(open && mqSinglePanel.matches) showTable(false);
+  $('#side').classList.toggle('closed-m',!open);
+  $('#btnLayers').setAttribute('aria-expanded',String(open));
+}
+function revealDetailPanel(){
+  if(!mqSinglePanel.matches) return;
+  showLayers(false); showTable(false);
+}
 let cardPeek=false;
 function setCardPeek(v){
   cardPeek=v; const card=$('#card'); card.classList.toggle('peek', v && mqMobile.matches);
@@ -3186,6 +3298,11 @@ function flyTo(i){
 }
 function select(i, fly){
   if(FOLLOW.i>=0 && i!==FOLLOW.i) stopFollow(i>=0);   // другой спутник — слежение снимается; закрыли карточку — вид со спутника возвращает прежний вид
+  if(i>=0){
+    revealDetailPanel();
+    if(SKY.open) openSky(false);
+    if(!$('#news').hidden) openNews(false);
+  }
   if(i>=0 && i!==S.selected) cardPeek = mqMobile.matches;
   S.selected=i; trackStamp++; renderCard(); updateElevHint();
   if(i>=0 && fly){ if(valid[i]) flyTo(i); else pendingFly=i; }
@@ -3408,6 +3525,7 @@ function renderSystems(){
         <label for="sys${k}">${esc(L(sys.cfg.name))}<small>${ctryNote(sys)}${esc(cfgT(sys.cfg,'category'))}</small></label>
         <span class="cnt num">${sys.pendingSrc?(sys.enabled||sys.loading||!sys.pendingN?'…':nf(sys.pendingN)):(sys.enabled&&(sys.subtypes||satFilterActive())?`${visCount.get(sys)||0} ${esc(t('f.of'))} `:'')+(sys.pendingSrc?'':n)}</span>
         <input type="checkbox" class="switch" id="sys${k}" data-k="${k}" ${sys.enabled?'checked':''}></div>`;
+      if(sys.loadFailed) h+=`<p class="note">${esc(t('catalog.failed'))} <button type="button" class="link" data-retry="${k}">${esc(t('catalog.retry'))}</button></p>`;
       if(sys.subtypes && sys.enabled){
         const cs=new Map(); for(const s of sys.sats) if(s.cat) cs.set(s.cat.subtype,(cs.get(s.cat.subtype)||0)+1);
         h+=`<div class="chips" role="group" aria-label="${esc(t('chips.aria',L(sys.cfg.name)))}">`+sys.subtypes.filter(st=>cs.get(st.id)).map(st=>
@@ -3423,7 +3541,8 @@ function renderSystems(){
   box.querySelectorAll('[data-bulk]').forEach(b=>b.onclick=()=>{ const v=b.dataset.bulk==='1'; for(const s of list) s.enabled=v; filtersChanged(); });
   box.querySelectorAll('[data-gtog]').forEach(b=>b.onclick=()=>{ const r=b.dataset.gtog; if(S.collapsed.has(r)) S.collapsed.delete(r); else S.collapsed.add(r);
     try{ localStorage.setItem('rassvet.collapsed', JSON.stringify([...S.collapsed])); }catch(e){} renderSystems(); });
-  box.querySelectorAll('input.switch').forEach(inp=>inp.onchange=()=>{ systems[+inp.dataset.k].enabled=inp.checked; filtersChanged(); });
+  box.querySelectorAll('input.switch').forEach(inp=>inp.onchange=()=>{ const sys=systems[+inp.dataset.k]; sys.enabled=inp.checked; if(inp.checked) sys.loadFailed=false; filtersChanged(); });
+  box.querySelectorAll('[data-retry]').forEach(b=>b.onclick=()=>loadDeferredSystems(true,true));
   box.querySelectorAll('.chip[data-st]').forEach(b=>b.onclick=()=>{ const sys=systems[+b.dataset.k], id=b.dataset.st; if(sys.subtypeOn.has(id)) sys.subtypeOn.delete(id); else sys.subtypeOn.add(id); filtersChanged(); });
   renderTimeline();
 }
@@ -3706,8 +3825,10 @@ function runSearch(){
     return `<li role="option" id="sr${k}" data-k="${k}" aria-selected="${k===searchSel}"><i style="background:${esc(sy.cfg.color||'#999')};border-radius:3px"></i><span class="nm">${esc(L(sy.cfg.name))}<small>${esc(t('search.sys',n,sy.enabled))}</small></span></li>`; };
   const placeLi = (it,k)=>{ const c=countryAt(it.p.lon,it.p.lat);
     return `<li role="option" id="sr${k}" data-k="${k}" aria-selected="${k===searchSel}"><svg class="pin" width="12" height="14" viewBox="0 0 12 14" aria-hidden="true"><path d="M6 13s4.6-4.2 4.6-7.6a4.6 4.6 0 0 0-9.2 0C1.4 8.8 6 13 6 13z" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="6" cy="5.4" r="1.6" fill="currentColor"/></svg><span class="nm">${esc(it.p.name)}<small>${c?esc(c)+', ':''}${esc(t('search.place'))}</small></span></li>`; };
-  list.innerHTML = note + (searchRes.length ? searchRes.map((it,k)=>it.kind==='sys' ? sysLi(it,k) : it.kind==='place' ? placeLi(it,k) : satLi(it.s,k)).join('')
-    : (note ? '' : `<li class="none">${esc(t('search.none'))}</li>`));
+  if(systems.some(x=>x.loadFailed)){ searchRes.push({kind:'retry'}); if(searchSel<0) searchSel=0; }
+  const retryLi=k=>`<li role="option" id="sr${k}" data-k="${k}" aria-selected="${k===searchSel}"><span class="nm">${esc(t('catalog.retry'))}<small>${esc(t('catalog.failed'))}</small></span></li>`;
+  list.innerHTML = note + (searchRes.length ? searchRes.map((it,k)=>it.kind==='retry' ? retryLi(k) : it.kind==='sys' ? sysLi(it,k) : it.kind==='place' ? placeLi(it,k) : satLi(it.s,k)).join('')
+    : (note ? '' : `<li class="none">${esc(t(systems.some(x=>x.pendingSrc && x.loading)?'catalog.loading':'search.none'))}</li>`));
   list.hidden=false; inp.setAttribute('aria-expanded','true'); inp.setAttribute('aria-activedescendant', searchSel>=0?'sr'+searchSel:'');
   list.querySelectorAll('li[data-k]').forEach(li=>li.onmousedown=e=>{ e.preventDefault(); pickSearch(+li.dataset.k); });
   const nl=list.querySelector('li.note'); if(nl) nl.onmousedown=e=>{ if(!e.target.closest('a')) e.preventDefault(); };   // поле не теряет фокус, ссылка открывается
@@ -3719,6 +3840,7 @@ function moveSearch(d){
 }
 function pickSearch(k){
   const it=searchRes[k]; if(!it) return;
+  if(it.kind==='retry'){ loadDeferredSystems(true,true); runSearch(); return; }
   $('#sres').hidden=true; $('#sq').value=''; $('#sq').setAttribute('aria-expanded','false'); $('#sq').blur(); $('#searchBox').classList.remove('open');
   if(it.kind==='sys') showSystem(it.sys); else if(it.kind==='place') goPlace(it.p); else goToSat(it.s);
 }
@@ -3728,7 +3850,7 @@ function showSystem(sys){
   if(sys.cfg.region) S.collapsed.delete(sys.cfg.region);
   if(!sys.enabled){ sys.enabled=true; toast(t('search.sysOn', L(sys.cfg.name))); }
   filtersChanged(); setTab('sys');
-  const sd=$('#side'); if(sd.classList.contains('closed-m')){ sd.classList.remove('closed-m'); $('#btnLayers').setAttribute('aria-expanded','true'); }
+  showLayers(true);
   const inp=document.getElementById('sys'+systems.indexOf(sys)), row=inp && inp.closest('.sysrow');
   if(row){ row.scrollIntoView({block:'center', behavior:reduceMotion.matches?'auto':'smooth'}); row.classList.add('tour-hl'); setTimeout(()=>row.classList.remove('tour-hl'),1600); }
 }
@@ -3846,11 +3968,13 @@ function fetchBitmap(url){
   return fetch(url).then(r=>{ if(!r.ok) throw new Error(r.status+' '+url); return r.blob(); })
     .then(b=>createImageBitmap(b,{colorSpaceConversion:'none', premultiplyAlpha:'none'}));
 }
-async function loadGlobeAssets(){
+async function loadGlobeAssets(firstSurfaceReady){
   if(GL3.man || GL3.pending || GL3.failed) return; GL3.pending=true;
   try{
-    const man=await fetch('globe/globe.json',{cache:'no-cache'}).then(r=>{ if(!r.ok) throw new Error('globe.json '+r.status); return r.json(); });
-    let live=null; try{ live=await fetch('clouds/latest.json',{cache:'no-cache'}).then(r=>r.ok?r.json():null); }catch(e){}
+    const [man,live]=await Promise.all([
+      fetch('globe/globe.json',{cache:'no-cache'}).then(r=>{ if(!r.ok) throw new Error('globe.json '+r.status); return r.json(); }),
+      fetch('clouds/latest.json',{cache:'no-cache'}).then(r=>r.ok?r.json():null).catch(()=>null)
+    ]);
     GL3.man=man; GL3.cloudsLive=!!(live && live.files);
     GL3.cloudLevels=(GL3.cloudsLive ? live.levels : man.cloudLevels) || [0.1,0.8];
     const url=(kind,w)=> kind==='clouds' && GL3.cloudsLive && live.files[w] ? 'clouds/'+live.files[w] : 'globe/'+man.textures[kind][w];
@@ -3868,11 +3992,12 @@ async function loadGlobeAssets(){
       if(prev && !onGpu) kinds.forEach(kind=>{ if(!same(kind) && prev[kind] && prev[kind].close) prev[kind].close(); });   // прежний уровень так и не попал на видеокарту
       // новый объект: EarthLayer заменит все текстуры в одном кадре, прежние живут до замены — без мигания
       GL3.tex={id:k, w:t, color:bm[0], relief:bm[1], night:bm[2], clouds:bm[3]};
-      if(k===0){ geoCache=null; updateSpace(); renderFoot(); await new Promise(r=>setTimeout(r,1200)); }
+      if(k===0){ geoCache=null; updateSpace(); renderFoot(); firstSurfaceReady(); await new Promise(r=>setTimeout(r,1200)); }
     }
   }catch(e){
     console.warn('Глобус: фототекстуры недоступны, остаётся прежний вид.', e);
     if(!GL3.tex){ GL3.failed=true; loadEarthTextures(); }
+    firstSurfaceReady();
   }
   GL3.pending=false;
 }
@@ -4539,6 +4664,7 @@ function fmtWhen(ms){
   return `${day} ${d.toLocaleTimeString(LOC(),{hour:'2-digit',minute:'2-digit'})}`;
 }
 function openNews(v){
+  if(v) revealDetailPanel();
   $('#news').hidden=!v; $('#btnNews').setAttribute('aria-pressed',String(v));
   $('#app').classList.toggle('news-open', v);
   if(v){ if(S.selected>=0) select(-1); if(SKY.open) openSky(false); $('#tools').classList.remove('open'); renderNews(); }
@@ -4723,6 +4849,7 @@ function renderNews(){
     if(o.kind==='sat') goToSat(o.s); else showSystem(o.sys); });
 }
 function openSky(v){
+  if(v) revealDetailPanel();
   SKY.open=v; $('#sky').hidden=!v; $('#btnSky').setAttribute('aria-pressed',String(v));
   $('#app').classList.toggle('sky-open', v);
   if(v){ if(S.selected>=0) select(-1); if(!$('#news').hidden) openNews(false); $('#tools').classList.remove('open'); renderSky(); if(SKY.obs && !SKY.passes) computeRassvetPasses(); if(SKY.obs && (!SKY.cover || SKY.cover.el!==S.elev)) computeCover(); }   // точка сохранена с прошлого визита — пролёты ещё не считались
@@ -4958,10 +5085,10 @@ const CMP_SYS=['rassvet','oneweb','starlink'];
 async function computeCompare(){
   const tok=++SKY.cmpTok; SKY.cmp={busy:true, pct:0}; renderCompare();
   const list=CMP_SYS.map(id=>systems.find(x=>x.cfg.id===id)).filter(Boolean);
-  if(list.some(x=>x.pendingSrc)){ SKY.cmp.loading=true; renderCompare(); loadDeferredSystems(true);
-    for(let k=0; k<240 && list.some(x=>x.pendingSrc); k++) await new Promise(r=>setTimeout(r,250));
+  if(list.some(x=>x.pendingSrc)){ SKY.cmp.loading=true; renderCompare(); await loadDeferredSystems(true,true);
     SKY.cmp.loading=false; }
   if(tok!==SKY.cmpTok || !SKY.obs) return;
+  if(list.some(x=>x.loadFailed)){ SKY.cmp={failed:true}; renderCompare(); return; }
   const cover=await computeCover(true);
   if(!cover || tok!==SKY.cmpTok || !SKY.obs) return;
   const t0=cover.t0, gd=obsGd(), el=cover.el, jobs=list.filter(x=>!x.pendingSrc), rows=[];
@@ -4980,6 +5107,7 @@ function renderCompare(){
   const box=$('#skyCmp'); if(!box) return; const c=SKY.cmp;
   let h=`<h4>${esc(t('cmp.h'))}</h4>`;
   if(!c) h+=`<p class="note">${esc(t('cmp.p'))}</p><button type="button" class="tbtn" id="cmpGo">${esc(t('cmp.go'))}</button>`;
+  else if(c.failed) h+=`<p class="note">${esc(t('catalog.failed'))}</p><button type="button" class="tbtn" id="cmpGo">${esc(t('catalog.retry'))}</button>`;
   else if(c.busy) h+=`<p class="note" id="cmpProg">${esc(c.loading ? t('cmp.loading') : t('cmp.calc', c.pct))}</p>`;
   else {
     h+=`<table class="cmp"><thead><tr><th>${esc(t('cmp.net'))}</th><th>${esc(t('cmp.now'))}</th><th>${esc(t('cmp.any'))}</th><th>${esc(t('cmp.gap'))}</th></tr></thead><tbody>`
@@ -5009,6 +5137,8 @@ function launchMs(s){
 function renderGrowth(){
   const box=$('#growthBody'); if(!box || !$('#growth').open) return;
   const list=GROWTH_SYS.map(id=>systems.find(x=>x.cfg.id===id)).filter(Boolean);
+  if(list.some(x=>x.loadFailed)){ box.innerHTML=`<p class="note">${esc(t('catalog.failed'))}</p><button type="button" class="tbtn">${esc(t('catalog.retry'))}</button>`;
+    box.querySelector('button').onclick=()=>loadDeferredSystems(true,true); return; }
   if(list.some(x=>x.pendingSrc)){ box.innerHTML=`<p class="note">${esc(t('gr.loading'))}</p>`; loadDeferredSystems(true); return; }
   const y0=2019, now=Date.now(), t0=Date.UTC(y0,0,1), W=300, H=150, PL=38, B=16, Y=v=>H-B-(Math.log10(Math.max(1,v))/4.3)*(H-B-6), X=ms=>PL+(ms-t0)/(now-t0)*(W-PL-4);
   let svg=`<svg viewBox="0 0 ${W} ${H}" class="grsvg" role="img" aria-label="${esc(t('gr.h'))}">`;
@@ -5258,7 +5388,8 @@ function applyViewHash(h){
   if(tt){ let ms=Date.parse(tt); if(Number.isFinite(ms)){ const now=Date.now(), c=Math.max(now-SPAN+60000, Math.min(now+SPAN-60000, ms)); if(c!==ms) toast(t('link.timeClamped'), 3500);
     S.time.live=false; S.time.playing=false; S.time.sim=c; syncTimeButtons(); updateClock(); } }
   const sn=+q.get('s');
-  if(sn){ const sat=satByNorad(sn); if(sat){ if(!satVisible(sat)){ sat.sys.enabled=true; if(sat.sys.subtypes && sat.cat) sat.sys.subtypeOn.add(sat.cat.subtype); filtersChanged(); } select(sat.idx, false); } }
+  if(sn){ const sat=satByNorad(sn); if(sat){ if(!satVisible(sat)){ sat.sys.enabled=true; if(sat.sys.subtypes && sat.cat) sat.sys.subtypeOn.add(sat.cat.subtype); filtersChanged(); } select(sat.idx, false); }
+    else if(systems.some(x=>x.pendingSrc)) loadDeferredSystems(true); }
   const c=(q.get('c')||'').split(',').map(Number);
   if(c.length===3 && c.every(Number.isFinite)){
     S.vs=clampVS({longitude:c[0], latitude:c[1], zoom:c[2], pitch:+q.get('p')||0, bearing:+q.get('b')||0});
@@ -5411,10 +5542,10 @@ function startTour(force){
   let fresh=true;
   if(!force){ try{ if(localStorage.getItem('rassvet.tour3')) return; fresh=!localStorage.getItem('rassvet.tour'); }catch(e){ return; } if(location.hash) return; }
   const steps = fresh ? [ {k:'tour.1', hl:()=>null},
-                          {k:'tour.2', hl:()=>mqMobile.matches?'#btnLayers':'#systems'},
+                          {k:'tour.2', hl:()=>mqSinglePanel.matches?'#btnLayers':'#systems'},
                           {k:'tour.3', hl:()=>'#alti'},
                           {k:'tour.4', hl:()=>'#btnSky'},
-                          {k:'tour.news', hl:()=>mqMobile.matches?'#btnMore':'#btnNews'},
+                          {k:'tour.news', hl:()=>mqSinglePanel.matches?'#btnMore':'#btnNews'},
                           {k:'tour.5', hl:()=>'#timebar'} ]
                       : [ {k:'tour.n1', hl:()=>'#timebar'}, {k:'tour.n2', hl:()=>mqMobile.matches?'#btnSearch':'#searchBox'}, {k:'tour.n3', hl:()=>'#btnSky'} ];
   let i=0, hlEl=null; const box=document.createElement('div'); box.className='tour glass'; box.setAttribute('role','dialog'); box.setAttribute('aria-live','polite');
@@ -5432,19 +5563,15 @@ function startTour(force){
 }
 
 /* ================= Инициализация ================= */
-function webgl2Ok(){ try{ const c=document.createElement('canvas'); return !!c.getContext('webgl2'); }catch(e){ return false; } }
 function init(){
-  if(!webgl2Ok()){
-    window.__showFatal(t('webgl.title'), t('webgl.body'));
-    return;
-  }
   window.__rassvetStarted=true;
   applyStatic();
   loadSystems(); restoreSystems(); rebuildVisible();   // выбор систем из прошлого визита — до первого кадра
   try{ const o=JSON.parse(localStorage.getItem('rassvet.obs')||'null'); if(o && Number.isFinite(o.lat) && Number.isFinite(o.lon)) SKY.obs=o; }catch(e){}
   charset=CHARSET();
   FONT_FAMILY=getComputedStyle(document.body).fontFamily;
-  readColors(); drawBase(); if(S.view!=='globe') loadEarthTextures(); loadGlobeAssets();
+  const firstSurface=new Promise(resolve=>{ loadGlobeAssets(resolve); });
+  readColors(); drawBase(); if(S.view!=='globe') loadEarthTextures();
   const vw=window.innerWidth, vh=window.innerHeight;
   S.vs.zoom = Math.max(0.8, Math.log2(Math.min(vw,vh)*0.62*Math.PI/512));
   deckgl=new deck.Deck({
@@ -5463,13 +5590,17 @@ function init(){
   initTabs(); renderSystems(); renderFilters(); renderLegend(); renderFoot(); updateBanner(); updateNewsDot(); syncTimeButtons(); updateSpace();
   // события
   $('#v2d').onclick=()=>setView('map'); $('#v3d').onclick=()=>setView('globe');
-  $('#btnLayers').onclick=()=>{ const sd=$('#side'); const open=sd.classList.toggle('closed-m'); $('#btnLayers').setAttribute('aria-expanded',String(!open)); };
-  const openTable=(v)=>{ $('#sheet').hidden=!v; $('#btnTable').setAttribute('aria-expanded',String(v)); if(v) renderTable(true); };
-  $('#btnTable').onclick=()=>openTable($('#sheet').hidden); $('#sheetClose').onclick=()=>openTable(false);
+  $('#btnLayers').onclick=()=>showLayers($('#side').classList.contains('closed-m'));
+  $('#btnTable').onclick=()=>showTable($('#sheet').hidden); $('#sheetClose').onclick=()=>showTable(false);
   $('#q').oninput=()=>renderTable();
   const tb2=$('#tbl tbody');
-  tb2.addEventListener('click',e=>{ const tr=e.target.closest('tr'); if(tr && tr.dataset.i) select(+tr.dataset.i,true); });
-  tb2.addEventListener('keydown',e=>{ if(e.key==='Enter'){ const tr=e.target.closest('tr'); if(tr && tr.dataset.i) select(+tr.dataset.i,true); } });
+  const pickRow=e=>{
+    const tr=e.target.closest('tr[data-i]'); if(!tr) return;
+    select(+tr.dataset.i,true);
+    if(mqSinglePanel.matches) $('#cardClose').focus({preventScroll:true});
+  };
+  tb2.addEventListener('click',pickRow);
+  tb2.addEventListener('keydown',e=>{ if(e.key==='Enter') pickRow(e); });
   $('#bannerClose').onclick=()=>{ const b=$('#banner'); try{ localStorage.setItem('rassvet.bannerHidden',b.dataset.key||''); }catch(e){} b.hidden=true; };
   document.querySelectorAll('[data-color]').forEach(b=>b.onclick=()=>{ S.colorMode=b.dataset.color; document.querySelectorAll('[data-color]').forEach(x=>x.setAttribute('aria-pressed',String(x===b))); renderLegend(); if(S.selected>=0) renderCard(); if(!$('#sheet').hidden) renderTable(); });
   $('#tTracks').onchange=e=>{ S.tracks=e.target.checked; };
@@ -5485,22 +5616,26 @@ function init(){
   $('#tTails').onchange=e=>{ S.tails=e.target.checked; };
   // язык, «Надо мной», меню «ещё» на телефоне
   $('#btnLang').onclick=()=>{ setLang(LANG==='ru'?'en':'ru'); $('#tools').classList.remove('open'); };
-  $('#btnSky').onclick=()=>openSky(!SKY.open);
-  $('#btnNews').onclick=()=>openNews($('#news').hidden);
+  const detailCovered=()=>mqSinglePanel.matches && (!$('#sheet').hidden || !$('#side').classList.contains('closed-m'));
+  $('#btnSky').onclick=()=>openSky(!SKY.open || detailCovered());
+  $('#btnNews').onclick=()=>openNews($('#news').hidden || detailCovered());
   $('#btnMore').onclick=e=>{ e.stopPropagation(); const o=$('#tools').classList.toggle('open'); $('#btnMore').setAttribute('aria-expanded',String(o)); };
   document.addEventListener('click',e=>{ if(!e.target.closest('#tools,#btnMore')){ $('#tools').classList.remove('open'); $('#btnMore').setAttribute('aria-expanded','false'); } });
-  $('#tools').addEventListener('click',e=>{ if(e.target.closest('button')) $('#tools').classList.remove('open'); });
+  $('#tools').addEventListener('click',e=>{ if(e.target.closest('button')){
+    $('#tools').classList.remove('open'); $('#btnMore').setAttribute('aria-expanded','false');
+  } });
   // поиск
   const sq=$('#sq');
-  sq.addEventListener('input',runSearch);
-  sq.addEventListener('focus',()=>{ loadDeferredSystems(true); if(sq.value.trim()) runSearch(); });   // поиск ищет и по Starlink — догружаем
+  sq.addEventListener('input',()=>{ if(sq.value.trim()) loadDeferredSystems(true); runSearch(); });
+  sq.addEventListener('focus',()=>{ if(sq.value.trim()){ loadDeferredSystems(true); runSearch(); } });
+  window.addEventListener('online',()=>{ if(systems.some(x=>x.loadFailed)) loadDeferredSystems(true,true); });
   sq.addEventListener('blur',()=>setTimeout(()=>{ $('#sres').hidden=true; sq.setAttribute('aria-expanded','false'); },120));
   sq.addEventListener('keydown',e=>{
     if(e.key==='ArrowDown'){ e.preventDefault(); moveSearch(1); } else if(e.key==='ArrowUp'){ e.preventDefault(); moveSearch(-1); }
-    else if(e.key==='Enter'){ e.preventDefault(); if(searchSel>=0) pickSearch(searchSel); }
+    else if(e.key==='Enter'){ e.preventDefault(); if(searchSel>=0) pickSearch(searchSel); else if(sq.value.trim()) loadDeferredSystems(true,true); }
     else if(e.key==='Escape'){ sq.value=''; runSearch(); sq.blur(); $('#searchBox').classList.remove('open'); } });
   $('#btnSearch').onclick=()=>{ const b=$('#searchBox'); const o=b.classList.toggle('open'); if(o) setTimeout(()=>sq.focus(),30); };
-  window.addEventListener('keydown',e=>{ if(e.key==='/' && !e.target.closest('input,textarea') && !$('#dlg').open){ e.preventDefault(); $('#searchBox').classList.add('open'); sq.focus(); } });
+  window.addEventListener('keydown',e=>{ if(e.key==='/' && !e.target.closest('input,textarea') && !document.querySelector('dialog[open]')){ e.preventDefault(); $('#searchBox').classList.add('open'); sq.focus(); } });
   // мобильная карточка: смахивание по заголовку
   const cardEl=$('#card'); let cardY=null;
   cardEl.addEventListener('touchstart',e=>{ cardY = mqMobile.matches && e.target.closest('header') && !e.target.closest('a,button:not(#cardHandle)') ? e.touches[0].clientY : null; },{passive:true});
@@ -5513,8 +5648,8 @@ function init(){
   for(const ev of ['pointerup','pointercancel']) window.addEventListener(ev,e=>{ POINTERS.delete(e.pointerId); lastInteract=performance.now(); if(followExitTo>=0 && !POINTERS.size) setTimeout(followExit,0); },{passive:true,capture:true});
   window.addEventListener('blur',()=>POINTERS.clear());
   window.addEventListener('hashchange',readHash);
-  // Safari на iOS масштабирует страницу щипком несмотря на viewport; после этого интерфейс «уезжает» и жесты глобуса не доходят
-  for(const ev of ['gesturestart','gesturechange']) document.addEventListener(ev, e=>e.preventDefault(), {passive:false});
+  // Жест над картой управляет камерой; панели и текст используют масштабирование браузера.
+  for(const ev of ['gesturestart','gesturechange']) $('#map').addEventListener(ev,e=>e.preventDefault(),{passive:false});
   $('#tLabels').onchange=e=>{ S.labels=e.target.checked; labelsDirty=true; };
   $('#tZones').onchange=e=>{ S.zones=e.target.checked; updateElevHint(); };
   $('#elev').oninput=e=>setElev(+e.target.value);
@@ -5538,7 +5673,7 @@ function init(){
   sc.addEventListener('pointerdown',()=>scrubbing=true); window.addEventListener('pointerup',()=>scrubbing=false);
   sc.oninput=()=>{ const T=S.time; T.live=false; T.sim=Date.now()+(+sc.value)*60000; syncTimeButtons(); };
   sc.onchange=()=>{ scrubbing=false; };
-  window.addEventListener('keydown',e=>{ if(e.key==='Escape' && M3D){ closeModel(); return; } if(e.key==='Escape' && S.selected>=0 && !$('#dlg').open) select(-1); });
+  window.addEventListener('keydown',e=>{ if(e.key==='Escape' && S.selected>=0 && !document.querySelector('dialog[open]')) select(-1); });
   initTips();
   const tb=$('#timebar'); const setTb=()=>document.documentElement.style.setProperty('--tb', (tb.offsetHeight+ (window.innerWidth<=720?16:24))+'px');
   setTb(); if(window.ResizeObserver) new ResizeObserver(setTb).observe(tb); window.addEventListener('resize',()=>{ setTb(); labelsDirty=true; requestAnimationFrame(updateAtmo); });
@@ -5559,11 +5694,15 @@ function init(){
   requestAnimationFrame(tick);
   requestAnimationFrame(()=>{ updateAtmo(); readHash(); });
   setTimeout(()=>{ updateElevHint(); updateNav(); startTour(false); }, 1500);
-  setTimeout(loadGeoDetail, 150);   // регионы и города — после первого кадра
+  // Подробная география и установка PWA делят сеть с первым набором текстур.
+  // Если источник текстур завис, каталог городов и офлайн-установка всё равно доступны.
+  const backgroundReady=S.view==='globe' ? firstSurface : Promise.resolve();
+  Promise.race([backgroundReady,new Promise(resolve=>setTimeout(resolve,8000))]).then(()=>{
+    loadGeoDetail();
+    registerOfflineTracker();
+  });
   setTimeout(loadDeferredSystems, 400);
   if(PERFQ.level) applyQuality(false);
-  // установка на телефон и работа без сети (web/static/sw.js)
-  if('serviceWorker' in navigator && window.isSecureContext) navigator.serviceWorker.register('sw.js').catch(e=>console.warn('service worker', e));
 }
 
 // для проверки расчёта (используется только тестом)
@@ -5592,9 +5731,119 @@ window.__rassvetLang = (function(){
   return /^(ru|be|uk|kk|ky|uz|tg|hy|az)\b/i.test(navigator.language||'ru') ? 'ru' : 'en';
 })();
 document.documentElement.lang = window.__rassvetLang;
+// Установка оболочки доступна и в текстовом режиме.
+function registerOfflineTracker(){
+  if('serviceWorker' in navigator && window.isSecureContext)
+    navigator.serviceWorker.register('sw.js').catch(e=>console.warn('service worker',e));
+}
+
+// Общие обозначения аппарата для карты и текстового каталога.
+function alpha5ToNum(s){ s=String(s).trim(); const c=s[0]; if(/[A-Za-z]/.test(c)){ const v='ABCDEFGHJKLMNPQRSTUVWXYZ'.indexOf(c.toUpperCase()); if(v<0) return NaN; return (v+10)*10000+parseInt(s.slice(1),10); } return parseInt(s,10); }
+function intlToCospar(s){ s=s.trim(); if(!/^\d{5}/.test(s)) return null; const yy=+s.slice(0,2); return `${yy<57?2000+yy:1900+yy}-${s.slice(2,5)}${s.slice(5)}`; }
+function startLiteCatalog(){
+  const en=document.documentElement.lang==='en', msg=(ru,eng)=>en?eng:ru;
+  const registry=JSON.parse(document.getElementById('registry').textContent);
+  const meta=JSON.parse(document.getElementById('data-meta').textContent);
+  const entries=registry.systems.map(cfg=>({cfg,rows:null,loading:null,failed:false}));
+  const title=msg('Каталог спутников','Satellite catalogue');
+  const app=document.getElementById('app');
+  app.classList.remove('booting');
+  app.innerHTML='<main id="liteCatalog"><button type="button" data-theme-toggle></button><h1></h1><p id="liteInfo"></p><label for="liteSystem"></label><select id="liteSystem"></select><label for="liteSearch"></label><input id="liteSearch" type="search"><p id="liteStatus" role="status"></p><button type="button" id="liteRetry" hidden></button><ul id="liteRows"></ul><button type="button" id="liteMore" hidden></button></main>';
+  const el=id=>document.getElementById(id);
+  const main=el('liteCatalog'), select=el('liteSystem'), input=el('liteSearch'), retry=el('liteRetry'), more=el('liteMore');
+  main.querySelector('h1').textContent=title;
+  const theme=main.querySelector('[data-theme-toggle]');
+  theme.textContent=msg('Светлая тема','Light theme');
+  theme.setAttribute('aria-pressed',String(document.documentElement.dataset.theme==='light'));
+  const date=new Date(meta.generatedAt);
+  el('liteInfo').textContent=msg('Карта требует WebGL 2. Дата публикации','The map requires WebGL 2. Catalogue published')+' · '+(isNaN(date)?'—':date.toLocaleString(en?'en-GB':'ru-RU'));
+  main.querySelector('label[for="liteSystem"]').textContent=msg('Система','System');
+  main.querySelector('label[for="liteSearch"]').textContent=msg('Название, NORAD или COSPAR','Name, NORAD or COSPAR');
+  retry.textContent=msg('Повторить загрузку','Retry download');
+  more.textContent=msg('Показать ещё','Show more');
+  const name=cfg=>cfg.name[en?'en':'ru'] || cfg.name.ru || cfg.id;
+  select.add(new Option(msg('Все системы','All systems'),''));
+  for(const {cfg} of entries) select.add(new Option(name(cfg),cfg.id));
+  // Первый экран показывает основную группировку. В общем поиске доступны также отложенные каталоги.
+  select.value=entries[0]?.cfg.id || '';
+  let limit=50, redrawQueued=false;
+  function scheduleDisplay(){
+    if(redrawQueued) return; redrawQueued=true;
+    requestAnimationFrame(()=>{ redrawQueued=false; display(); });
+  }
+  function rowsOf(cfg,block){
+    if(cfg.format==='constellation') return block.satellites.map(s=>[s.noradId,s.displayName?.[en?'en':'ru'] || s.catalogName,s.cosparId,s.elements?.epoch]);
+    if(cfg.format==='catalog') return block.rows.map(r=>[r[0],r[1],r[2],r[9]]);
+    if(cfg.format==='omm') return block.map(s=>[s.NORAD_CAT_ID,s.OBJECT_NAME,s.OBJECT_ID,s.EPOCH]);
+    return [];
+  }
+  async function readEntry(entry){
+    const {cfg}=entry, raw=document.getElementById(cfg.dataKey).textContent;
+    if(cfg.format==='tle'){
+      const lines=raw.trim().split(/\r?\n/), rows=[];
+      for(let i=0;i<lines.length-1;i++) if(lines[i].startsWith('1 ') && lines[i+1].startsWith('2 ')){
+        const number=alpha5ToNum(lines[i].slice(2,7)), previous=lines[i-1] || '';
+        const epoch=lines[i].slice(18,32), yy=+epoch.slice(0,2), day=+epoch.slice(2);
+        const stamp=/^\d{5}\.\d+$/.test(epoch) && day>=1 && day<367 ? Date.UTC(yy<57?2000+yy:1900+yy,0,1)+(day-1)*86400000 : null;
+        if(Number.isFinite(number) && number===alpha5ToNum(lines[i+1].slice(2,7))) rows.push([number,previous.startsWith('2 ')?'':previous.replace(/^0\s+/,''),intlToCospar(lines[i].slice(9,17)),stamp]);
+      }
+      return rows;
+    }
+    let block=JSON.parse(raw);
+    if(block.src){ const r=await fetch(block.src); if(!r.ok) throw new Error(String(r.status)); block=await r.json(); }
+    return rowsOf(cfg,block);
+  }
+  function display(){
+    const selected=entries.filter(e=>!select.value || e.cfg.id===select.value);
+    const q=input.value.trim().toLocaleLowerCase();
+    const matches=[];
+    for(const entry of selected){
+      if(!entry.rows && !entry.loading && !entry.failed){
+        entry.loading=readEntry(entry).then(rows=>{ entry.rows=rows; },()=>{ entry.failed=true; })
+          .finally(()=>{ entry.loading=null; scheduleDisplay(); });
+      }
+      for(const row of entry.rows || []){
+        if(!q || [row[0],row[1],row[2]].some(v=>String(v??'').toLocaleLowerCase().includes(q))) matches.push([entry.cfg,row]);
+      }
+    }
+    const error=selected.some(e=>e.failed), loading=selected.some(e=>e.loading);
+    retry.hidden=!error;
+    el('liteStatus').textContent=[loading?msg('Загрузка…','Loading…'):'',error?msg('Часть каталога недоступна.','Part of the catalogue is unavailable.'):'',msg('Найдено','Matches')+' · '+matches.length].filter(Boolean).join(' ');
+    const list=el('liteRows'), frag=document.createDocumentFragment();
+    for(const [cfg,[id,label,cospar,epoch]] of matches.slice(0,limit)){
+      const item=document.createElement('li'), details=document.createElement('details'), summary=document.createElement('summary');
+      summary.textContent=[label,'NORAD '+id,name(cfg)].filter(Boolean).join(' · ');
+      details.appendChild(summary); details.open=q===String(id);
+      const ids=document.createElement('p'); ids.textContent=[name(cfg),'NORAD '+id,'COSPAR '+(cospar || '—')].join(' · ');
+      const time=document.createElement('p');
+      const utc=typeof epoch==='string' && /^\d{4}-\d\d-\d\dT[\d:.]+$/.test(epoch)?epoch+'Z':epoch;
+      const ms=typeof utc==='number'?utc:Date.parse(utc);
+      let stamp=Number.isFinite(ms)?new Date(ms).toISOString().replace('T',' ').slice(0,19)+' UTC':msg('не указана','unknown');
+      const age=(Date.now()-ms)/86400000;
+      if(age>(meta.orbitPolicy?.maxEpochAgeDays || 30)) stamp+=' · '+msg('данные устарели для карты','too old for the map');
+      else if(age>(meta.orbitPolicy?.predictionMaxAgeDays || 7)) stamp+=' · '+msg('данные устарели для прогноза','too old for predictions');
+      time.textContent=msg('Эпоха орбитальных элементов','Orbital element epoch')+' · '+stamp;
+      details.append(ids,time); item.appendChild(details); frag.appendChild(item);
+    }
+    list.replaceChildren(frag); more.hidden=matches.length<=limit;
+  }
+  function readLocation(){
+    const hash=location.hash.slice(1), n=/^\d{1,6}$/.test(hash)?hash:new URLSearchParams(hash).get('s');
+    if(n && /^\d{1,6}$/.test(n)){ select.value=''; input.value=n; }
+    limit=50; display();
+  }
+  more.onclick=()=>{ limit+=50; display(); };
+  retry.onclick=()=>{ for(const entry of entries) entry.failed=false; display(); };
+  select.onchange=input.oninput=()=>{ limit=50; display(); };
+  window.addEventListener('hashchange',readLocation); readLocation();
+}
 /* Загрузчик библиотек: страница отрисовывается сразу, ошибки сети показываются явно */
 (function(){
   const EN = window.__rassvetLang==='en';
+  let probe=null;
+  try{ probe=document.createElement('canvas').getContext('webgl2'); }catch(e){}
+  if(!probe){ startLiteCatalog(); registerOfflineTracker(); return; }
+  probe.getExtension('WEBGL_lose_context')?.loseContext();
   const M = EN ? { timeout:'no response within 25 seconds', noinit:'file received but the library did not start', blocked:'request blocked or failed',
       loading:l=>'Loading '+l+'…', building:'Building the map…', fail:'Could not load a map library',
       hint:'The page loads its libraries from the vendor/ folder of this site. Reload the page; if the error persists, check that the file is available:' }

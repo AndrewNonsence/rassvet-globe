@@ -5,6 +5,22 @@ What changes on the page and in the repository. Dates are UTC.
 
 ## Не выпущено / Unreleased
 
+## v1.15.0 — 2026-11-18
+
+### Русский
+
+- На планшете карта остаётся видимой при выборе спутника и переключении слоёв. Выбранная тема сохраняется. При медленной загрузке закрытое окно 3D-модели остаётся закрытым.
+- Без WebGL 2 доступен поиск по имени, NORAD и COSPAR с датой орбиты в карточке.
+- Ускорена первая загрузка. В мобильной эмуляции Edge медиана появления фотоглобуса составила 7,70 с вместо 8,26 с, по три запуска каждой версии. [Методика](docs/performance.md)
+- После установки офлайн-оболочки трекер открывается без сети. Касание пустого поиска больше не скачивает Starlink. Прерванную загрузку каталога можно повторить.
+
+### English
+
+- Tablets keep the map visible while switching between layers and satellite details. The tracker remembers the colour theme. Closing a 3D model while it loads now dismisses it reliably.
+- Browsers without WebGL 2 can search by name, NORAD or COSPAR and inspect the orbit epoch.
+- In three cold starts per version on an emulated mobile Edge profile, median time to the textured globe fell from 8.26 s to 7.70 s.
+- Once the offline shell is installed, the tracker can reopen without a connection. Focusing an empty search field keeps Starlink unloaded. Failed catalogue downloads can be retried.
+
 ## v1.14.1 — 2026-11-15
 
 ### Русский

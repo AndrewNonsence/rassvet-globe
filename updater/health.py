@@ -49,13 +49,19 @@ def report(page, now=None, max_days=30):
             'expired': sum(a is not None and a > max_days for a in ages),
             'missing': sum(a is None or a < -2 for a in ages),
         }
-    return {'schemaVersion': 1, 'generatedAt': data.get('data-meta', {}).get('generatedAt'),
-            'checkedAt': now.isoformat(), 'maxEpochAgeDays': max_days, 'systems': systems}
+    meta = data.get('data-meta', {})
+    result = {'schemaVersion': 1, 'generatedAt': meta.get('generatedAt'),
+              'checkedAt': now.isoformat(), 'maxEpochAgeDays': max_days, 'systems': systems}
+    if 'publicationId' in meta:
+        result['publicationId'] = meta['publicationId']
+    return result
 
 
-def problems(data, now=None, max_hours=18):
+def problems(data, now=None, max_hours=18, publication_id=None):
     now = now or dt.datetime.now(UTC)
     issues = []
+    if publication_id and data.get('publicationId') != publication_id:
+        issues.append('served page does not match the requested publication')
     age = age_days(data.get('generatedAt'), now)
     if age is None or age < -0.01 or age * 24 > max_hours:
         issues.append('publication missing, future-dated or older than limit')
@@ -74,6 +80,7 @@ def main():
     source.add_argument('--url', help='published site root')
     source.add_argument('--file', help='HTML file, or - for standard input')
     parser.add_argument('--max-hours', type=float, default=18)
+    parser.add_argument('--publication-id', help='expected deployment identifier in the served HTML')
     args = parser.parse_args()
     try:
         if args.file:
@@ -92,7 +99,7 @@ def main():
         if len(page) > 16 * 1024 * 1024:
             raise ValueError('page exceeds size limit')
         data = report(page.decode('utf-8'))
-        issues = problems(data, max_hours=args.max_hours)
+        issues = problems(data, max_hours=args.max_hours, publication_id=args.publication_id)
         print(json.dumps(data, ensure_ascii=False))
         for issue in issues:
             print('FAIL: ' + issue)

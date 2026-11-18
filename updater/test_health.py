@@ -23,6 +23,16 @@ class HealthTests(unittest.TestCase):
     def test_recent_elements_pass(self):
         self.assertFalse(problems(report(self.page('2026-11-15T03:00:00Z'), self.now), self.now))
 
+    def test_fresh_previous_publication_cannot_confirm_redeploy(self):
+        page = self.page('2026-11-15T03:00:00Z')
+        old, new = '1' * 32, '2' * 32
+        for actual in (None, old, new):
+            with self.subTest(actual=actual):
+                served = page if actual is None else page.replace('"generatedAt":', '"publicationId":"' + actual + '","generatedAt":')
+                data = report(served, self.now)
+                self.assertFalse(problems(data, self.now))
+                self.assertEqual(not problems(data, self.now, publication_id=new), actual == new)
+
     def test_stale_publication_and_missing_systems_fail(self):
         self.assertTrue(problems({'generatedAt': '2026-11-13T00:00:00Z', 'systems': {}}, self.now))
 

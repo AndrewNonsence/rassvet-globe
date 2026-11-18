@@ -64,6 +64,10 @@ no CDN. An orbit snapshot is embedded in the page, so the site works right after
   </tr>
 </table>
 
+### Version 1.15.0 — map loading, tablets and offline use
+
+The tracker remembers your light or dark theme. On tablets, switch between layers and satellite details while keeping the map visible. Browsers without WebGL 2 can search the catalogue by name or identifier and inspect the orbit epoch. [Changelog](CHANGELOG.md) · [Loading measurements](docs/performance.md)
+
 ### Version 1.14.1: terrain preparation
 
 Terrain mesh generation reuses row and column calculations; tile selection reuses shared corner projections. Image resolution, mesh detail and selected tiles are preserved, with byte-for-byte geometry checks against version 1.14.0. Fixed invalid picking colors over terrain. [Measurements and quality checks](docs/performance.md).
@@ -658,7 +662,7 @@ The remaining ≈ 4.6 MB is data in 28 `<script type="application/json">` blocks
 | `data-rassvet` | everything about Rassvet: 38 satellites with orbital elements, 3 generations, 4 launches, plans up to 2030 and 34 sources — every fact marked "confirmed" or "unconfirmed" |
 | `data-glonass` … `data-ru-other` | 11 Russian systems, one row per satellite: NORAD, name, COSPAR, launch date, GCAT program and category, subtype, SATCAT perigee, apogee and inclination, orbital elements and their epoch |
 | `data-gps` … `data-iridium` | 9 systems whose line-up is assembled from CelesTrak SATCAT groups, same row format plus the SATCAT owner |
-| `data-starlink` | ≈ 11,070 Starlink satellites (≈ 2.7 MB) — loaded after the first frame so the page opens fast |
+| `data-starlink` | ≈ 11,070 Starlink satellites (≈ 2.7 MB). The catalogue loads when enabling the layer, searching, following a satellite link or comparing systems |
 | `geo-data` | Natural Earth (≈ 360 KB): 242 countries — coastlines, borders and labels needed for the first frame |
 | `geo-detail` | Natural Earth (≈ 1.3 MB): region borders, 4,583 regions and 7,342 cities labelled in Russian and English — loaded after the first frame |
 | `data-meta` | snapshot date and the list of sources it was built from |
@@ -846,8 +850,7 @@ For close-up relief and imagery the page requests tiles at `tiles/dem/…`, `til
 <details>
 <summary><b>Does it work offline?</b></summary>
 
-Yes, after the first visit over HTTPS or on `localhost`: the service worker keeps the page, libraries
-and textures. Positions are still computed from the last saved data.
+After the first visit over HTTPS or on `localhost`, let the offline shell finish installing. You can then close the site and reopen it without a connection. The browser saves the page and the three libraries needed to calculate and display orbits. Positions use the saved data. Additional catalogues and textures are available as they are cached.
 </details>
 
 <details>

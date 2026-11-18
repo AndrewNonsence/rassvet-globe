@@ -1200,6 +1200,10 @@ def run_once(args, cfg):
     groups = {sy["select"]["satcatGroup"] for sy in satcat_systems(template)}
     satcat = collect_satcat(groups, cfg["http"], state_dir, ua, now) if groups else {}
     page, changed = build(template, results, now, domain, stamp=bool(fresh), state_dir=state_dir, news=news, satcat=satcat, launches=launches)
+    if args.publication_id:
+        meta = json.loads(get_block(page, "data-meta"))
+        meta["publicationId"] = args.publication_id
+        page = put_block(page, "data-meta", json_text(meta))
     try:
         check_built(template, page)
     except Exception as e:
@@ -1271,11 +1275,19 @@ def locked_run(args, cfg):
     os.makedirs(state, exist_ok=True)
     with open(os.path.join(state, "update.lock"), "w") as lock:
         if fcntl:
-            try:
-                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            except BlockingIOError:
-                log.warning("Обновление уже идёт в другом процессе — пропускаю")
-                return 0
+            deadline = time.monotonic() + 900
+            while True:
+                try:
+                    fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    break
+                except BlockingIOError:
+                    if not args.publication_id:
+                        log.warning("Обновление уже идёт в другом процессе — пропускаю")
+                        return 0
+                    if time.monotonic() >= deadline:
+                        log.error("Не удалось дождаться блокировки публикации за 15 минут")
+                        return 1
+                    time.sleep(1)
         try:
             return run_once(args, cfg)
         except Stop:
@@ -1321,6 +1333,7 @@ def main():
     mode.add_argument("--once", action="store_true", help="одно обновление и выход")
     mode.add_argument("--loop", action="store_true", help="постоянная работа по schedule.interval_hours с опорой UPDATE_HOUR_UTC")
     mode.add_argument("--dry-run", action="store_true", help="всё, кроме публикации")
+    ap.add_argument("--publication-id", help="метка публикации для проверки --once, с ожиданием блокировки до 15 минут")
     ap.add_argument("--template", default="/app/template/rassvet-tracker.html")
     ap.add_argument("--static", default="/app/static")
     ap.add_argument("--models", default="/app/models", help="каталог 3D-моделей репозитория (models/); нет — пропуск")
@@ -1328,6 +1341,8 @@ def main():
     ap.add_argument("--out", default="/srv/www", help="каталог сайта")
     ap.add_argument("--data", default="/data", help="логи и состояние")
     args = ap.parse_args()
+    if args.publication_id is not None and (not args.once or not re.fullmatch(r"[0-9a-f]{32}", args.publication_id)):
+        ap.error("--publication-id требует --once и 32 шестнадцатеричных символа")
 
     setup_logging(args.data)
 
