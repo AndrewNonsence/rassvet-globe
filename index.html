@@ -499,6 +499,18 @@ html.redmode .m3d[open]::after{content:'';position:fixed;inset:0;background:rgb(
 .m3d-box{width:min(1280px,94vw);height:min(900px,90vh);display:flex;flex-direction:column;border-radius:16px;overflow:hidden}
 .m3d-box header{display:flex;align-items:center;gap:10px;padding:12px 14px 8px}
 .m3d-box h2{margin:0;font-size:var(--type-title);flex:1}
+.ros-entry{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;min-height:44px;padding:7px 2px;border:0;border-bottom:1px solid var(--line);background:transparent;color:var(--text);text-align:start;cursor:pointer;font:inherit}
+.ros-entry:hover,.ros-entry:focus-visible{color:var(--accent)}
+.ros-entry small{color:var(--muted);font-size:12px}
+.ros-summary{margin:0;padding:0 14px 8px;font-size:13px;color:var(--muted)}
+.ros-text{overflow:auto;padding:0 16px}
+.ros-text h3{font-size:14px;margin:14px 0 4px}
+.ros-text p{margin:4px 0}
+.ros-text a,.ros-project footer a{color:var(--accent)}
+.ros-project .m3d-parts{flex-wrap:wrap}
+.ros-project .m3d-parts .chip{min-height:44px}
+.ros-project .m3d-ex{background:var(--selected-bg);color:var(--text);border:1px solid var(--line);border-radius:8px;cursor:pointer}
+@media (max-width:720px){.ros-project .m3d-box{height:100dvh;padding-bottom:env(safe-area-inset-bottom)}}
 .m3d-view{flex:1;position:relative;min-height:0;background:radial-gradient(ellipse at 50% 40%,rgba(80,110,180,.18),transparent 70%)}
 .m3d-box footer{padding:8px 14px 12px;font-size:12.5px;color:var(--muted)}
 .m3d-box footer .tag{margin:0 6px 0 0}
@@ -965,6 +977,7 @@ html.redmode body::after{content:'';position:fixed;inset:0;background:rgb(200,14
     <div class="seg glass" role="group" aria-label="Вид" data-i18n-aria="view.aria">
       <button id="v2d" aria-pressed="false" data-i18n-tip="tip.2d">2D</button>
       <button id="v3d" aria-pressed="true" data-i18n-tip="tip.3d">3D</button>
+      <button id="vMoon" type="button" aria-haspopup="dialog" data-i18n="moon.title">Луна</button>
     </div>
     <div class="search" id="searchBox" role="search">
       <svg class="mag" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
@@ -1005,6 +1018,7 @@ html.redmode body::after{content:'';position:fixed;inset:0;background:rgb(200,14
       <button type="button" role="tab" id="tabView" data-tab="view" aria-controls="pView" aria-selected="false" tabindex="-1"><span data-i18n="tab.view">Вид</span></button>
     </div>
     <section class="tabp" id="pSys" data-tab="sys" role="tabpanel" aria-labelledby="tabSys">
+    <button type="button" class="ros-entry" id="rosOpen" aria-haspopup="dialog"><span data-i18n="ros.open">Как соберут РОС</span><small data-i18n="ros.label">3D-схема проекта</small></button>
     <div id="systems"></div>
     <div class="sep" id="tlSep"></div>
     <div id="timeline" class="timeline"></div>
@@ -1202,6 +1216,7 @@ ru:{
   'view.aria':'Вид', 'tip.2d':'Плоская карта мира в проекции Меркатора: удобно смотреть трассы целиком. Выбранный спутник, время и масштаб сохраняются при переключении.',
   'tip.3d':'Глобус: спутники над поверхностью, трассы показаны как орбиты в пространстве. Орбиты выше 1200 км (ГЛОНАСС, геостационар) сжаты по высоте, чтобы поместиться в кадр.',
   'btn.layers':'Слои', 'tip.layers':'Показать или скрыть панель систем, раскраски и слоёв.',
+  'moon.title':'Луна', 'moon.failed':'Не удалось загрузить лунный режим. Попробуйте ещё раз.',
   'btn.table':'Таблица', 'tip.table':'Список аппаратов выбранных систем с текущими параметрами орбиты. Клик по заголовку сортирует, клик по строке показывает аппарат на карте.',
   'btn.lang':'English', 'aria.lang':'English version', 'tip.lang':'Switch the site to English.',
   'btn.sky':'Надо мной', 'btn.news':'Новости', 'aria.news':'Космические новости', 'tip.news':'Космические новости: запуски, разработки, события. Обновляются раз в сутки.', 'news.h':'Космические новости', 'news.close':'Закрыть', 'news.empty':'Новостей пока нет — зайдите позже.', 'news.open':'Читать на источнике', 'news.foot':'Коротко из открытых источников, обновляется раз в сутки. Полный текст — по ссылке. Фото — только из ленты NASA (работы NASA не охраняются авторским правом в США); у остальных — обложка по теме.',
@@ -1338,6 +1353,7 @@ ru:{
   ],
   'm3d.official':'официальная модель', 'm3d.credit':(c,p)=>`Модель: ${c} (NASA 3D Resources). Для сайта: ${p}.`, 'm3d.source':'Исходник',
   'm3d.open':'3D-модель аппарата', 'm3d.close':'Закрыть', 'm3d.schematic':'схема',
+  'ros.open':'Как соберут РОС', 'ros.label':'3D-схема проекта',
   'm3d.full':'Во весь экран', 'm3d.explode':'Разобрать', 'm3d.assemble':'Собрать', 'm3d.explodeTip':'Развести части в стороны, чтобы рассмотреть каждую', 'm3d.parts':'Части аппарата',
   'm3d.hintParts':'Нажмите на часть или выберите её в списке — появится короткое описание. Перетаскивайте, чтобы повернуть; колесо или щипок — масштаб.',
   'm3d.hintPins':'Нажмите на номер или выберите часть в списке. Перетаскивайте, чтобы повернуть; колесо или щипок — масштаб.',
@@ -1407,6 +1423,7 @@ en:{
   'view.aria':'View', 'tip.2d':'Flat Mercator world map: good for seeing whole ground tracks. The selected satellite, time and zoom are kept when switching.',
   'tip.3d':'Globe: satellites above the surface, tracks drawn as orbits in space. Orbits above 1,200 km (GLONASS, geostationary) are compressed in altitude to fit in view.',
   'btn.layers':'Layers', 'tip.layers':'Show or hide the panel with systems, colouring and layers.',
+  'moon.title':'Moon', 'moon.failed':'The lunar explorer could not load. Please try again.',
   'btn.table':'Table', 'tip.table':'List of satellites in the selected systems with current orbit parameters. Click a header to sort, click a row to show the satellite on the map.',
   'btn.lang':'Русский', 'aria.lang':'Русская версия', 'tip.lang':'Переключить сайт на русский.',
   'btn.sky':'Overhead', 'btn.news':'News', 'aria.news':'Space news', 'tip.news':'Space news: launches, developments, events. Updated once a day.', 'news.h':'Space news', 'news.close':'Close', 'news.empty':'No news yet — check back later.', 'news.open':'Read at source', 'news.foot':'Short items from public sources, updated once a day. Full text at the link. Photos come only from the NASA feed (NASA works are not copyrighted in the US); other items get a topic cover.',
@@ -1543,6 +1560,7 @@ en:{
   ],
   'm3d.official':'official model', 'm3d.credit':(c,p)=>`Model: ${c} (NASA 3D Resources). For the web: ${p}.`, 'm3d.source':'Source',
   'm3d.open':'3D model of the satellite', 'm3d.close':'Close', 'm3d.schematic':'schematic',
+  'ros.open':'How ROS will be assembled', 'ros.label':'Planned 3D layout',
   'm3d.full':'Full screen', 'm3d.explode':'Take apart', 'm3d.assemble':'Assemble', 'm3d.explodeTip':'Move the parts apart to look at each one', 'm3d.parts':'Satellite parts',
   'm3d.hintParts':'Tap a part or pick it in the list to read a short description. Drag to rotate; wheel or pinch to zoom.',
   'm3d.hintPins':'Tap a number or pick a part in the list. Drag to rotate; wheel or pinch to zoom.',
@@ -2433,6 +2451,7 @@ function bodyGap(now){
 }
 function tick(){
   if(window.__rassvetFatal) return;
+  if(moonActive){ lastRaf=lastFrame=performance.now(); requestAnimationFrame(tick); return; }
   const now=performance.now(), rdt=now-lastRaf; lastRaf=now;
   perfWatch(now, rdt);   // по настоящим кадрам: редкая пересборка слоёв — не просадка
   if(now-lastBody<bodyGap(now)-2){ requestAnimationFrame(tick); return; }
@@ -2704,8 +2723,9 @@ async function loadPartsGlb(url){
 let M3D=null;
 const modelOf = s => (REG.models||[]).find(m=>m.norad===s.norad || (m.norads||[]).includes(s.norad)) || null;   // norads — одна модель на несколько одинаковых аппаратов (MMS)
 const partInfo = (M, id) => (M.kind==='schematic' ? (REG.schematicParts||[]) : (M.om.parts||M.om.markers||[])).find(x=>x.id===id) || null;
-function m3dShell(s, foot, canExplode){
+function m3dShell(s, foot, canExplode, opener=$('#card3d')){
   const wrap=document.createElement('dialog'); wrap.className='m3d'; wrap.id='m3d'; wrap.setAttribute('aria-labelledby','m3dTitle');
+  wrap.modelOpener=opener;
   wrap.innerHTML=`<div class="m3d-box glass"><header><h2 id="m3dTitle">${esc(s.name)}</h2>
     ${canExplode?`<button type="button" class="btn m3d-ex" id="m3dEx" aria-pressed="false" data-tip="${esc(t('m3d.explodeTip'))}">${esc(t('m3d.explode'))}</button>`:''}
     <button type="button" class="m3d-fs" id="m3dFs" aria-pressed="false" aria-label="${esc(t('m3d.full'))}" data-tip="${esc(t('m3d.full'))}"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg></button>
@@ -2730,6 +2750,7 @@ function m3dShell(s, foot, canExplode){
 }
 function m3dDeck(M, view, vs, layers, effects){
   M.d=new deck.Deck({ parent:view, views:new deck.OrbitView({id:'m3d', orbitAxis:M.up==='Z'?'Z':'Y'}), viewState:vs, controller:true, layers, effects:effects||[],
+    ...(M.kind==='project' ? {onError:()=>requestAnimationFrame(()=>showRosText(M.wrap,M.om))} : {}),
     useDevicePixels:Math.min(window.devicePixelRatio||1, mqCoarse.matches?1.5:2), pickingRadius: mqCoarse.matches ? 14 : 6,   // палец толще курсора
     getCursor:({isHovering,isDragging})=>isHovering?'pointer':(isDragging?'grabbing':'grab'),
     onClick:(info)=>{ if(!M3D) return; if(info && info.layer && info.layer.props.partId) selectPart(info.layer.props.partId); else if(M.sel) selectPart(null); },
@@ -2755,7 +2776,14 @@ function partLayers(M){
 const PGROUPS=['ru','us','truss','power','robots','science'];   // группы частей МКС (поле group в реестре)
 function renderPartChips(M){
   const box=$('#m3dParts'), info=M.om&&M.om.parts;
-  const chip=(id,i)=>{ const x=partInfo(M,id); return x?`<button type="button" class="chip" data-part="${esc(id)}" aria-pressed="${M.sel===id}">${M.pins?`<b class="num">${i+1}</b> `:''}${esc(cfgT(x,'name'))}</button>`:''; };
+  const chip=(id,i)=>{
+    const x=partInfo(M,id);
+    if(!x) return '';
+    let marker='';
+    if(M.pins) marker=`<b class="num">${i+1}</b> `;
+    if(M.kind==='project') marker=`<i aria-hidden="true" style="background:${rgbCss(M.parts[i].color)}"></i>`;
+    return `<button type="button" class="chip" data-part="${esc(id)}" aria-pressed="${M.sel===id}">${marker}${esc(cfgT(x,'name'))}</button>`;
+  };
   if(info && info.some(x=>x.group)){
     const have=new Set(M.parts.map(p=>p.id)), cur=M.pgroup||'ru';
     box.classList.add('grouped');
@@ -2766,7 +2794,11 @@ function renderPartChips(M){
     const list = M.parts ? M.parts.map(p=>p.id) : M.om.markers.map(m=>m.id);
     box.innerHTML=list.map((id,i)=>chip(id,i)).join('');
   }
-  box.querySelectorAll('[data-part]').forEach(b=>b.onclick=()=>selectPart(M.sel===b.dataset.part?null:b.dataset.part));
+  box.querySelectorAll('[data-part]').forEach(b=>b.onclick=()=>{
+    const id=b.dataset.part;
+    selectPart(M.sel===id?null:id);
+    box.querySelector('[data-part="'+CSS.escape(id)+'"]')?.focus({preventScroll:true});
+  });
 }
 /* подробная версия части (models/iss/<id>.glb, с мелкими деталями) — грузится, когда часть выбрана */
 async function loadDetail(M, id){
@@ -2792,7 +2824,10 @@ function selectPart(id){
   box.innerHTML=`<button type="button" class="close" id="m3dInfoClose" aria-label="${esc(t('m3d.close'))}">×</button><h3>${esc(cfgT(x,'name'))}</h3><p>${esc(cfgT(x,'text'))}</p>
     ${M.kind==='schematic'?`<p class="note">${esc(t('m3d.generic'))}</p>`:''}${x.group==='science'?`<p class="note">${esc(t('m3d.snapshot'))}</p>`:''}
     <p class="links">${(x.sources||[]).map(q=>`<a href="${esc(q.url)}" target="_blank" rel="noopener" data-tip="${esc(q.title)}">${esc(t('m3d.src',srcShort(q.title)))} ↗</a>`).join('')}${w?`<a href="${esc(w.url)}" target="_blank" rel="noopener" data-tip="${esc(w.title)}">${esc(t('m3d.wiki',t('m3d.wikiShort')))} ↗</a>`:''}</p>`;
-  box.hidden=false; $('#m3dInfoClose').onclick=()=>selectPart(null);
+  box.hidden=false; $('#m3dInfoClose').onclick=()=>{
+    selectPart(null);
+    $('#m3dParts').querySelector('[data-part="'+CSS.escape(id)+'"]')?.focus({preventScroll:true});
+  };
 }
 /* «NASA — Space Station Facts and Figures» → «NASA: Space Station Facts…» — короткая подпись, полное название в подсказке */
 const srcShort = x => { const [org, rest] = x.split(' — '); if(!rest) return x; const r = rest.length>26 ? rest.slice(0,24).trimEnd()+'…' : rest; return org+': '+r; };
@@ -2819,11 +2854,34 @@ function openModel(s, forceSchematic){
   startParts(s, G, 'schematic', null);
 }
 async function openPartsModel(s, om){
-  const wrap=m3dShell(s, `<span class="tag official">${esc(t('m3d.official'))}</span>${esc(t('m3d.credit', om.credit, cfgT(om,'processing')))} <a href="${esc(om.source_url)}" target="_blank" rel="noopener">${esc(t('m3d.source'))}</a>`, true);
+  const project=om.project;
+  const credit=project ? esc(om.credit) : `<span class="tag official">${esc(t('m3d.official'))}</span>${esc(t('m3d.credit', om.credit, cfgT(om,'processing')))}`;
+  const wrap=m3dShell(s, credit+` <a href="${esc(om.source_url)}" target="_blank" rel="noopener">${esc(t('m3d.source'))} ↗</a>`, true, project ? $('#rosOpen') : undefined);
+  if(project){
+    wrap.classList.add('ros-project');
+    const summary=document.createElement('p');
+    summary.className='ros-summary'; summary.textContent=om.summary;
+    wrap.querySelector('header').after(summary);
+  }
   const view=$('#m3dView'); view.classList.add('loading');
   try{ const parts=await loadPartsGlb(modelUrl(om)); if(!wrap.open) return; view.classList.remove('loading');
-    const G=withGeometry(parts.map(p=>({...p, color:p.color})), om.upAxis||'Y'); startParts(s, G, 'official', om); }
-  catch(e){ if(wrap.open){ console.warn('[rassvet] модель не загрузилась, показываю схему', e); openModel(s, true); } }
+    const G=withGeometry(parts, om.upAxis||'Y'); startParts(s, G, project?'project':'official', om); }
+  catch(e){
+    if(!wrap.open) return;
+    console.warn('[rassvet] model unavailable', e);
+    if(!project){ openModel(s, true); return; }
+    showRosText(wrap,om);
+  }
+}
+function showRosText(wrap,project){
+  if(!wrap.open || wrap.classList.contains('text-only')) return;
+  wrap.classList.add('text-only');
+  if(M3D){ cancelAnimationFrame(M3D.raf); M3D.d?.finalize(); M3D=null; }
+  const view=wrap.querySelector('.m3d-view'); view.classList.remove('loading'); view.classList.add('ros-text');
+  view.replaceChildren(rosModuleList(project));
+  wrap.querySelector('#m3dEx').hidden=true;
+  wrap.querySelector('#m3dParts').hidden=true;
+  wrap.querySelector('footer small').hidden=true;
 }
 /* размер, в который вписывается модель: окно часто широкое, а большинство аппаратов шире, чем выше — берём ширину,
    но не больше 1,35 высоты, чтобы вытянутые вверх (Hubble) не обрезались */
@@ -2833,8 +2891,9 @@ function startParts(s, G, kind, om){
   const M={ kind, om, parts:G.parts, up:G.up, e:0, sel:null, touched:0, raf:0, wrap:$('#m3d') };
   M.layers=()=>partLayers(M); M3D=M;
   const vs={ target:G.center, rotationOrbit:35, rotationX:G.up==='Z'?30:20, zoom:Math.log2(vmin/(2.2*G.radius*1.1)), minZoom:-8, maxZoom:12 };
+  if(kind==='project' && view.clientHeight>view.clientWidth) vs.zoom+=0.35;
   M.zoom0=vs.zoom; M.target0=G.center; M.fit=vmin;
-  m3dDeck(M, view, vs, M.layers(), kind==='official' ? [new deck.LightingEffect({ amb:new deck.AmbientLight({intensity:0.75}), sun:new deck.DirectionalLight({direction:[-1,-2,-1.5], intensity:1.25}), fill:new deck.DirectionalLight({direction:[1,1,1], intensity:0.45}) })] : []);
+  m3dDeck(M, view, vs, M.layers(), kind!=='schematic' ? [new deck.LightingEffect({ amb:new deck.AmbientLight({intensity:0.75}), sun:new deck.DirectionalLight({direction:[-1,-2,-1.5], intensity:1.25}), fill:new deck.DirectionalLight({direction:[1,1,1], intensity:0.45}) })] : []);
   renderPartChips(M); $('#m3dEx').onclick=toggleExplode; $('#m3dEx').hidden = G.parts.length<2;   // одну часть разбирать нечего
 }
 /* цельная модель (Hubble): ScenegraphLayer и метки на крупных частях — сами части в файле NASA не разделены */
@@ -2860,13 +2919,62 @@ function placePins(M){
     p.el.style.display=ok?'':'none'; if(ok) p.el.style.transform=`translate(${q[0].toFixed(1)}px,${q[1].toFixed(1)}px)`; }
 }
 const MESH_CACHE={};
+let moonActive=false;
+async function enterMoon(){
+  const opener=$('#vMoon');
+  if(moonActive) return;
+  moonActive=true;
+  opener.setAttribute('aria-busy','true');
+  try{
+    const {openExplorer}=await import('./moon/explorer.js');
+    await openExplorer({lang:LANG, opener, showModel:openLunarModel,
+      onClose:()=>{ moonActive=false; lastInteract=performance.now(); }});
+  }catch(error){
+    moonActive=false;
+    console.warn('[rassvet] lunar explorer', error);
+    toast(t('moon.failed'),4500);
+  }finally{ opener.removeAttribute('aria-busy'); }
+}
+function openLunarModel(item, opener){
+  const model=item.model, en=LANG==='en';
+  const title=item.name[LANG], source=esc(model.url);
+  const license=['change4','luna17'].includes(item.id)?' · <a href="models/moon/Space-Radar-LICENSE.txt" target="_blank" rel="noopener">MIT</a>':'';
+  const wrap=m3dShell({name:title},esc(model.credit[LANG])+' · <a href="'+source+'" target="_blank" rel="noopener">'+esc(t('m3d.source'))+' ↗</a>'+license,false,opener);
+  const view=wrap.querySelector('.m3d-view');
+  wrap.querySelector('footer small').textContent=en?'Drag to rotate · Scroll or pinch to zoom':'Перетащите для поворота · Колесо или щипок для приближения';
+  wrap.querySelector('#m3dParts').hidden=true;
+  const status=document.createElement('p'); status.className='moon-model-status';
+  status.setAttribute('role','status'); status.textContent=en?'Loading model…':'Загрузка модели…'; view.append(status);
+  function failed(){
+    if(!wrap.open) return;
+    status.hidden=false;
+    status.textContent=en?'Could not display the model. Close and reopen to retry.':'Не удалось показать модель. Закройте её и откройте снова.';
+  }
+  const M={kind:'lunar',om:{markers:[]},wrap,up:model.upAxis||'Y',raf:0,touched:performance.now()};
+  M3D=M;
+  try{
+    const size=fitSize(view);
+    const vs={target:model.center,rotationOrbit:32,rotationX:20,zoom:Math.log2(size/(2.6*model.radius)),minZoom:-20,maxZoom:24};
+    M.zoom0=vs.zoom; M.fit=size;
+    const layer=new deck.ScenegraphLayer({id:'lunar-craft',data:[0],scenegraph:model.file,getPosition:()=>[0,0,0],
+      coordinateSystem:deck.COORDINATE_SYSTEM.CARTESIAN,_lighting:'pbr',loadOptions:{worker:false},
+      onError:()=>{failed();return true;},onDataLoad:()=>{if(wrap.open) status.hidden=true;}});
+    m3dDeck(M,view,vs,[layer],[new deck.LightingEffect({
+      ambient:new deck.AmbientLight({intensity:1.25}),sun:new deck.DirectionalLight({direction:[-1,-2,-1.5],intensity:2.4})})]);
+    M.d.setProps({onError:failed, onAfterRender:()=>{
+      const loaded=M.d?.props.layers[0]?.getModels?.().length;
+      if(loaded && wrap.open) status.hidden=true;
+    }});
+  }catch(error){ console.warn('[rassvet] lunar model',error); failed(); }
+  return wrap;
+}
 function closeModel(){
   const wrap=$('#m3d'); if(!wrap) return;
   const tip=wrap.querySelector('#tip'); if(tip) document.body.appendChild(tip);
   wrap.close();
   if(M3D){ cancelAnimationFrame(M3D.raf); try{ M3D.d && M3D.d.finalize(); }catch(e){} }
   M3D=null; wrap.remove();
-  $('#card3d')?.focus({preventScroll:true});
+  wrap.modelOpener?.focus({preventScroll:true});
 }
 /* ================= «Как это работает»: орбиты простыми словами ================= */
 function openHow(){
@@ -5565,6 +5673,7 @@ function startTour(force){
 /* ================= Инициализация ================= */
 function init(){
   window.__rassvetStarted=true;
+  $('#vMoon').onclick=enterMoon;
   applyStatic();
   loadSystems(); restoreSystems(); rebuildVisible();   // выбор систем из прошлого визита — до первого кадра
   try{ const o=JSON.parse(localStorage.getItem('rassvet.obs')||'null'); if(o && Number.isFinite(o.lat) && Number.isFinite(o.lon)) SKY.obs=o; }catch(e){}
@@ -5589,6 +5698,10 @@ function init(){
   });
   initTabs(); renderSystems(); renderFilters(); renderLegend(); renderFoot(); updateBanner(); updateNewsDot(); syncTimeButtons(); updateSpace();
   // события
+  $('#rosOpen').onclick=()=>{
+    const project=rosProject(LANG);
+    openPartsModel(project,project);
+  };
   $('#v2d').onclick=()=>setView('map'); $('#v3d').onclick=()=>setView('globe');
   $('#btnLayers').onclick=()=>showLayers($('#side').classList.contains('closed-m'));
   $('#btnTable').onclick=()=>showTable($('#sheet').hidden); $('#sheetClose').onclick=()=>showTable(false);
@@ -5737,6 +5850,50 @@ function registerOfflineTracker(){
     navigator.serviceWorker.register('sw.js').catch(e=>console.warn('service worker',e));
 }
 
+// Shared content for the interactive schematic and the offline text catalogue.
+function rosProject(lang){
+  const msg=(ru,en)=>lang==='en'?en:ru;
+  const assembly={title:msg('Сценарий отделения · 08.04.2026','Separation plan · 8 Apr 2026'),url:'https://m.interfax.ru/1082800'};
+  const schedule={title:msg('График сборки · 28.10.2026','Assembly schedule · 28 Oct 2026'),url:'https://www.interfax.ru/russia/1125456'};
+  const manufacturing={title:msg('Изготовление · 21.10.2026','Manufacturing · 21 Oct 2026'),url:'https://www.interfax-russia.ru/moscow/news/izgotovlenie-pervogo-modulya-rossiyskoy-orbitalnoy-stancii-idet-v-rkk-energiya-bakanov'};
+  return {
+    project:true, file:'models/ros.glb', rev:'3f53a20c44', source_url:schedule.url,
+    name:msg('Как соберут РОС','How ROS will be assembled'),
+    summary:msg('Российская орбитальная станция после отделения от МКС · проектная схема. Сейчас «Наука» летает в составе МКС, самостоятельный полёт РОС ещё впереди.',
+      'Russian Orbital Station after separation from the ISS · planned configuration. Nauka currently flies with the ISS. Independent flight is a future stage.'),
+    credit:msg('Схема «Рассвета». Пропорции условны. По плану на октябрь 2026 года базовый модуль добавят в 2032 году.',
+      'Schematic by Rassvet. Proportions are approximate. The October 2026 schedule places the base module in 2032.'),
+    parts:[
+      {id:'nauka',name:msg('«Наука»','Nauka'),sources:[assembly],
+        text:msg('Лаборатория российского сегмента МКС. По проекту «Наука» отделится вместе с тремя новыми модулями РОС.',
+          'The laboratory of the Russian ISS segment. Under the plan, Nauka separates with three new ROS modules.')},
+      {id:'node',name:msg('Узловой','Node'),sources:[manufacturing,schedule,assembly],
+        text:msg('Универсальный узловой модуль соединит модули станции. В октябре 2026 года в РКК «Энергия» шло его изготовление. Запуск по плану — 2028 год, стыковка — на место «Причала».',
+          'The universal node will connect the modules. In October 2026, Energia was building it. Launch is planned for 2028, with docking at the port now occupied by Prichal.')},
+      {id:'nem',name:msg('Научно-энергетический','Science and power'),sources:[schedule,assembly],
+        text:msg('В модуле разместят научное оборудование. Солнечные батареи будут снабжать станцию электроэнергией. Запуск по плану — 2029 год.',
+          'This module will carry scientific equipment. Its solar arrays will supply power to the station. Launch is planned for 2029.')},
+      {id:'airlock',name:msg('Шлюзовой','Airlock'),sources:[schedule,assembly],
+        text:msg('Через шлюз экипаж сможет выходить в открытый космос. Запуск по плану — 2030 год. По сценарию отделения шлюз останется в составе РОС.',
+          'The airlock will allow crew members to go on spacewalks. Launch is planned for 2030. The separation plan keeps it with ROS.')}
+    ]
+  };
+}
+function rosModuleList(project){
+  const list=document.createDocumentFragment();
+  for(const part of project.parts){
+    const heading=document.createElement('h3'), body=document.createElement('p');
+    heading.textContent=part.name; body.textContent=part.text;
+    list.append(heading,body);
+    for(const source of part.sources){
+      const link=document.createElement('a'); link.href=source.url; link.textContent=source.title;
+      link.target='_blank'; link.rel='noopener';
+      list.append(link,document.createTextNode(' '));
+    }
+  }
+  return list;
+}
+
 // Общие обозначения аппарата для карты и текстового каталога.
 function alpha5ToNum(s){ s=String(s).trim(); const c=s[0]; if(/[A-Za-z]/.test(c)){ const v='ABCDEFGHJKLMNPQRSTUVWXYZ'.indexOf(c.toUpperCase()); if(v<0) return NaN; return (v+10)*10000+parseInt(s.slice(1),10); } return parseInt(s,10); }
 function intlToCospar(s){ s=s.trim(); if(!/^\d{5}/.test(s)) return null; const yy=+s.slice(0,2); return `${yy<57?2000+yy:1900+yy}-${s.slice(2,5)}${s.slice(5)}`; }
@@ -5752,6 +5909,16 @@ function startLiteCatalog(){
   const el=id=>document.getElementById(id);
   const main=el('liteCatalog'), select=el('liteSystem'), input=el('liteSearch'), retry=el('liteRetry'), more=el('liteMore');
   main.querySelector('h1').textContent=title;
+  const projectInfo=document.createElement('details'), projectTitle=document.createElement('summary');
+  projectTitle.textContent=msg('Как соберут РОС · проект','How ROS will be assembled · project');
+  projectInfo.className='ros-text'; projectInfo.appendChild(projectTitle);
+  projectInfo.ontoggle=()=>{
+    if(!projectInfo.open || projectInfo.children.length>1) return;
+    const project=rosProject(en?'en':'ru'), summary=document.createElement('p'), credit=document.createElement('p');
+    summary.textContent=project.summary; credit.textContent=project.credit;
+    projectInfo.append(summary,rosModuleList(project),credit);
+  };
+  main.querySelector('label[for="liteSystem"]').before(projectInfo);
   const theme=main.querySelector('[data-theme-toggle]');
   theme.textContent=msg('Светлая тема','Light theme');
   theme.setAttribute('aria-pressed',String(document.documentElement.dataset.theme==='light'));

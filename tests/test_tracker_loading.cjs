@@ -71,6 +71,7 @@ test('light catalogue keeps the epoch distinct from publication and supports an 
   class Element {
     constructor() { this.children = []; this.value = ''; this.dataset = {}; this.classList = {remove() {}}; }
     add(item) { this.children.push(item); }
+    before(item) { this.previousElementSibling = item; }
     append(...items) { this.children.push(...items); }
     appendChild(item) { this.children.push(item); return item; }
     replaceChildren(fragment) { this.children = fragment.children; }
@@ -114,4 +115,11 @@ test('light catalogue keeps the epoch distinct from publication and supports an 
   get('liteSearch').value = '25544'; get('liteSearch').oninput();
   assert.equal(get('liteRows').children.length, 1);
   assert.equal(get('liteRows').children[0].children[0].open, true);
+  const project = get('label[for="liteSystem"]').previousElementSibling;
+  vm.runInContext(source('function rosProject(lang)', '// Общие обозначения'), context);
+  context.document.createTextNode = text => ({textContent: text});
+  project.open = true; project.ontoggle();
+  assert.match(project.children[1].textContent, /Nauka currently flies with the ISS/);
+  const headings = project.children[2].children.filter(el => ['Nauka','Node','Science and power','Airlock'].includes(el.textContent));
+  assert.equal(headings.length, 4);
 });

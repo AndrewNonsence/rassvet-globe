@@ -1,0 +1,36 @@
+{
+  "global": {
+    "width": 720,
+    "height": 360,
+    "radiusKm": 1737.4,
+    "source": "https://svs.gsfc.nasa.gov/4720/",
+    "credit": "NASA/GSFC/ASU, LRO LOLA Science Team"
+  },
+  "apollo11": {
+    "side": 257,
+    "north": 0.70793628341644,
+    "south": 0.6403975724443959,
+    "west": 23.439395976479034,
+    "east": 23.506944975490796,
+    "source": "https://data.lroc.im-ldi.com/lroc/view_rdr/NAC_DTM_APOLLO11",
+    "credit": "NASA/GSFC/Arizona State University",
+    "meshSpacingMeters": 8,
+    "orthoSpacingMeters": 2
+  },
+  "apollo11Area": {
+    "width": 125,
+    "height": 385,
+    "north": 0.87678306084655,
+    "south": 0.4715507950142859,
+    "west": 23.376530550640922,
+    "east": 23.507406736226244,
+    "meshSpacingMeters": 32,
+    "orthoSpacingMeters": 8
+  },
+  "sourceSha256": {
+    "lroc_color_2k.jpg": "f7130a1822681fa7512d7dcfd40db8c10b9ba4f06777910348698260ed7a2170",
+    "ldem_4_uint.tif": "e6668bec27fc9b8fbb02d198c7ddfb08eedeeb790167b494f95e6b34201da05e",
+    "NAC_DTM_APOLLO11_E008N0234.IMG": "cfdd25a32cabc3ef6306269a59b7d466c09fbd7b83f6b9dfdb7ee24df78eee44",
+    "NAC_DTM_APOLLO11_M150361817_2M.IMG": "56d34b937e740f6c4fb7bbf711e8879da7bc895c041c0d9055ddca95fad23dcf"
+  }
+}

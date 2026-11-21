@@ -695,6 +695,28 @@ def publish_news_images(news, cfg, ua, out_dir):
     return got
 
 
+def publish_moon(static_dir, out):
+    """Copy the lunar viewer and its local terrain before linking the new tracker page."""
+    groups = {"moon": {".js", ".css"}, "assets/moon/terrain": {".jpg", ".bin", ".json"}}
+    for rel, extensions in groups.items():
+        directory = os.path.join(static_dir, rel)
+        if not os.path.isdir(directory):
+            continue
+        for name in os.listdir(directory):
+            src = os.path.join(directory, name)
+            if os.path.splitext(name)[1] not in extensions or not os.path.isfile(src):
+                continue
+            dst = os.path.join(out, rel, name)
+            with open(src, "rb") as asset:
+                contents = asset.read()
+            if os.path.isfile(dst) and os.path.getsize(dst) == len(contents):
+                with open(dst, "rb") as published:
+                    if published.read() == contents:
+                        continue
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            atomic_write(dst, contents)
+
+
 def publish_models(src, out):
     """3D-модели (models/*.glb, models/iss/*.glb) — рядом со страницей: окно 3D грузит их по /models/….
     Копируются только новые и изменённые файлы, удалённые из репозитория — убираются. Нет каталога — пропуск."""
@@ -706,9 +728,10 @@ def publish_models(src, out):
     copied, keep = 0, set()
     for dp, _, files in os.walk(src):
         for f in files:
-            if not f.endswith(".glb"):
+            rel = os.path.relpath(os.path.join(dp, f), src)
+            if not f.endswith(".glb") and rel != os.path.join("moon", "Space-Radar-LICENSE.txt"):
                 continue
-            s_, rel = os.path.join(dp, f), os.path.relpath(os.path.join(dp, f), src)
+            s_ = os.path.join(dp, f)
             d = os.path.join(dst, rel)
             keep.add(rel)
             if os.path.exists(d) and os.path.getsize(d) == os.path.getsize(s_) and os.path.getmtime(d) >= os.path.getmtime(s_):
@@ -1235,6 +1258,7 @@ def run_once(args, cfg):
     page = externalize(page, args.out)
     raw = page.encode("utf-8")
     compressed = gzip.compress(raw, 9, mtime=0)
+    publish_moon(args.static, args.out)
     atomic_write(os.path.join(args.out, "index.html"), raw)
     atomic_write(os.path.join(args.out, "index.html.gz"), compressed)
     atomic_write(os.path.join(args.out, "data-health.json"), json_text(health))

@@ -2,9 +2,21 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const test = require('node:test');
 const vm = require('node:vm');
+const {createHash} = require('node:crypto');
 
 const html = fs.readFileSync(process.argv[2] || 'web/template/rassvet-tracker.html', 'utf8');
 const loadModel = html.match(/async function openPartsModel\(s, om\)\{[\s\S]*?\n\}/)[0];
+
+test('ROS project metadata matches its four named GLB roots and cache revision', () => {
+  const source = html.match(/function rosProject\(lang\)\{[\s\S]*?\n\}/)[0];
+  const project = vm.runInNewContext('(' + source + ')')('ru');
+  const glb = fs.readFileSync(project.file);
+  const json = JSON.parse(glb.toString('utf8', 20, 20 + glb.readUInt32LE(12)));
+  const roots = json.scenes[json.scene ?? 0].nodes.map(i => json.nodes[i].name);
+  assert.deepEqual(roots.sort(), Array.from(project.parts, p => 'part:' + p.id).sort());
+  assert.equal(roots.length, 4);
+  assert.equal(project.rev, createHash('sha256').update(glb).digest('hex').slice(0, 10));
+});
 
 function modelWindow() {
   let resolve, reject;

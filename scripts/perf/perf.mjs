@@ -16,7 +16,8 @@
 // встроены, — первая загрузка тогда тяжелее, чем на сайте. Текст (html, js, json, css) сжимается gzip, как на сайте.
 // Код выхода 1, если в сценарии holes остались дыры.
 import http2 from 'node:http2'; import https from 'node:https'; import fs from 'node:fs'; import path from 'node:path';
-import { execFileSync, spawn } from 'node:child_process'; import os from 'node:os'; import { fileURLToPath } from 'node:url'; import zlib from 'node:zlib';
+import {withTestBrowser} from './test-browser.cjs';
+import { execFileSync } from 'node:child_process'; import os from 'node:os'; import { fileURLToPath } from 'node:url'; import zlib from 'node:zlib';
 
 const args = process.argv.slice(2), opt = n => { const i = args.indexOf(n); return i >= 0 ? args.splice(i, 2)[1] : null; };
 const SAVE = opt('--save'), COMPARE = opt('--compare');
@@ -87,13 +88,6 @@ function findBrowser() {
   const c = [process.env.BROWSER, 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe', 'C:/Program Files/Google/Chrome/Application/chrome.exe',
     '/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser', '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'].filter(Boolean);
   const b = c.find(x => fs.existsSync(x)); if (!b) throw new Error('не найден Chrome/Edge — укажите BROWSER=путь'); return b;
-}
-async function startBrowser(port) {
-  const prof = fs.mkdtempSync(path.join(os.tmpdir(), 'rassvet-perf-prof-'));
-  const p = spawn(findBrowser(), ['--headless=new', `--remote-debugging-port=${port}`, '--enable-gpu', '--ignore-gpu-blocklist', '--ignore-certificate-errors',
-    ...(process.platform === 'win32' ? ['--use-angle=d3d11'] : []), `--user-data-dir=${prof}`, '--no-first-run', 'about:blank'], { stdio: 'ignore' });
-  for (let k = 0; k < 60; k++) { try { await (await fetch(`http://127.0.0.1:${port}/json/version`)).json(); return { proc: p, prof }; } catch { await sleep(250); } }
-  throw new Error('браузер не запустился');
 }
 async function tab(port, dev) {
   const t = await (await fetch(`http://127.0.0.1:${port}/json/new?about:blank`, { method: 'PUT' })).json();
@@ -216,11 +210,15 @@ async function load(port, url) {
 }
 
 // ---------- запуск ----------
-const SPORT = 8790, BPORT = 9350, url = `https://127.0.0.1:${SPORT}/?lang=ru`;
-const srv = await startServer(SPORT), br = await startBrowser(BPORT);
+const SPORT = 8790, url = `https://127.0.0.1:${SPORT}/?lang=ru`;
+const srv = await startServer(SPORT);
 try {
-  for (const s of ONLY) await ({ startup, fps, holes, load })[s](BPORT, url);
-} finally { srv.close(); br.proc.kill(); try { fs.rmSync(br.prof, { recursive: true, force: true }); } catch {} }
+  const args=['--enable-gpu','--ignore-gpu-blocklist','--ignore-certificate-errors',
+    ...(process.platform === 'win32' ? ['--use-angle=d3d11'] : [])];
+  await withTestBrowser(findBrowser(),args,async port=>{
+    for (const s of ONLY) await ({ startup, fps, holes, load })[s](port, url);
+  });
+} finally { srv.close(); }
 
 const prev = COMPARE ? JSON.parse(fs.readFileSync(COMPARE, 'utf8')) : null;
 const fmt = v => Array.isArray(v) ? v.join(' / ') : String(v);

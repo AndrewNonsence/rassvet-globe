@@ -64,6 +64,18 @@ no CDN. An orbit snapshot is embedded in the page, so the site works right after
   </tr>
 </table>
 
+### Explore the Moon and the Russian Orbital Station
+
+Select **Moon** next to 2D/3D to explore a globe built from LROC images and LOLA elevation measurements. At the Apollo 11 landing site, tilt the camera to see the rim and floor of West crater east of the landing marker. The site imagery resolves 2 m per pixel and the terrain grid is spaced 8 m apart. Open a catalogue entry to rotate the Apollo lunar module, Lunokhod 1, Chang’e 4, Gateway or the International Lunar Research Station. Each station entry identifies its project status and model source.
+
+![Apollo 11 landing marker in the Sea of Tranquility with West crater to the right](docs/screenshots/moon-apollo11-ru.png)
+
+**How ROS will be assembled** shows the proposed configuration of the Russian Orbital Station after separation from the ISS. Use the exploded view to inspect Nauka, the node, the science and power module, and the airlock. Select a module to read about its role and open the source.
+
+![Four modules in the proposed Russian Orbital Station configuration](docs/screenshots/ros-ru.png)
+
+[Moon globe and mission catalogue on a phone screen](docs/screenshots/moon-mobile-en.png)
+
 ### Version 1.15.0 — map loading, tablets and offline use
 
 The tracker remembers your light or dark theme. On tablets, switch between layers and satellite details while keeping the map visible. Browsers without WebGL 2 can search the catalogue by name or identifier and inspect the orbit epoch. [Changelog](CHANGELOG.md) · [Loading measurements](docs/performance.md)
@@ -85,7 +97,7 @@ Predictions exclude elements older than seven days, and positions are disabled a
 |---|---|
 | 🛰 Systems on the map | **22** from 7 countries and regions, 9 types: internet, navigation, communications, Earth observation and more |
 | 📚 System descriptions | all 22 have sources: operators' sites, WMO OSCAR, the GCAT and SATCAT catalogues |
-| 🧩 3D models | 7 official NASA models; the ISS comes apart into 53 parts with descriptions and links |
+| 🧩 3D models | 7 NASA models in the satellite catalogue, 5 models in the lunar catalogue and a ROS schematic. Explore the ISS in 53 parts and ROS in 4 modules. |
 | 📡 Satellites in the snapshot | **≈ 12,360**, of which Starlink ≈ 11,070, OneWeb 651 and Rassvet 38 |
 | 🌍 Map | 242 countries, 4,583 regions, 7,342 cities in Russian and English |
 | 🖼 Earth textures | 3 levels of detail, up to 4096 × 2048, ≈ 8 MB |
@@ -757,7 +769,7 @@ the file explain every field.
 **`scripts/catalog/check_catalog.py`** checks the catalogue inside the page: every system is marked `verifiedAt`
 and its description has a primary source (or two independent secondary ones), military systems are flagged as classified by
 GCAT, NORAD IDs are not repeated across systems, and every satellite has valid COSPAR, dates and orbital
-elements, and every system has a country, region and type. Models in `models/` must stay within 1.5 MB and
+elements, and every system has a country, region and type. Models in the satellite registry must stay within 1.5 MB and
 50,000 triangles each and 25 MB in total, use only glTF extensions that need no WebAssembly, official ones
 must carry a licence and a source, the parts in the file must match the registry, every part needs a source
 and a Wikipedia article, and the ISS detailed parts must exist within the same limits.

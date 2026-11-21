@@ -5,6 +5,11 @@ What changes on the page and in the repository. Dates are UTC.
 
 ## Не выпущено / Unreleased
 
+## 2026-11-21 · Луна и РОС / Moon and ROS
+
+- Лунный глобус по данным LROC и LOLA показывает три места посадки и пять 3D-моделей. Для района «Аполлона-11» доступна подробная съёмка. В карточке РОС можно разобрать проектную станцию на четыре модуля.
+- Explore three lunar landing sites and five spacecraft and station models on LROC imagery and LOLA terrain. The Apollo 11 site includes a close-up survey. An exploded view shows the four modules of the proposed Russian Orbital Station.
+
 ## v1.15.0 — 2026-11-18
 
 ### Русский
